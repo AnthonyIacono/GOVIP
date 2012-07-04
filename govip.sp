@@ -31,7 +31,6 @@ new Handle:CVarMinCT = INVALID_HANDLE;
 new Handle:CVarMinT = INVALID_HANDLE;
 new Handle:CVarVIPWeapon = INVALID_HANDLE;
 new Handle:CVarVIPAmmo = INVALID_HANDLE;
-new MyWeaponsOffset = 0;
 new Handle:RescueZones = INVALID_HANDLE;
 new Handle:AllRescueZones = INVALID_HANDLE; // Kinda ugly but this contains map entities too.
 new bool:RoundComplete = false;
@@ -53,8 +52,6 @@ public OnPluginStart() {
 	HookEvent("round_end", Event_RoundEnd, EventHookMode_PostNoCopy);
 	HookEvent("player_death", Event_PlayerDeath);
 	HookEvent("player_spawn", Event_PlayerSpawn);
-	
-	MyWeaponsOffset = FindSendPropOffs("CBaseCombatCharacter", "m_hMyWeapons");
 	
 	RescueZones = CreateArray();
 	AllRescueZones = CreateArray();
@@ -198,7 +195,7 @@ public Action:Event_PlayerSpawn(Handle:event, const String:name[], bool:dontBroa
 	GetConVarString(CVarVIPWeapon, VIPWeapon, sizeof(VIPWeapon));
 	
 	StripWeapons(client);
-	
+	GivePlayerItem(client, "weapon_knife");
 	new index = GivePlayerItem(client, VIPWeapon);
 	
 	if(index != -1) {
@@ -446,22 +443,11 @@ stock RemoveMapObj() {
 StripWeapons(client) {
 	new weaponID;
 	
-	for(new x = 0; x < 20; x = (x + 4)) {
-		weaponID = GetEntDataEnt2(client, MyWeaponsOffset + x);
-		
-		if(weaponID <= 0) {
-			continue;
+	for(new x = CS_SLOT_PRIMARY; x <= CS_SLOT_C4; x++) {
+		while ((weaponID = GetPlayerWeaponSlot(client, x)) != -1) {
+			RemovePlayerItem(client, weaponID);
+			AcceptEntityInput(weaponID, "Kill");
 		}
-		
-		new String:weaponClassName[128];
-		GetEntityClassname(weaponID, weaponClassName, sizeof(weaponClassName));
-		
-		if(StrEqual(weaponClassName, "weapon_knife", false)) {
-			continue;
-		}
-		
-		RemovePlayerItem(client, weaponID);
-		RemoveEdict(weaponID);
 	}
 }
 
