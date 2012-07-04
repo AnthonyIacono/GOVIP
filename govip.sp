@@ -59,6 +59,14 @@ public OnPluginStart() {
 	hBotMoveTo = EndPrepSDKCall();
 	
 	RoundComplete = false;
+	
+	for (new i = 1; i <= MaxClients; i++) {
+		if (!IsClientInGame(i)) {
+			continue;
+		}
+		
+		OnClientPutInServer(i);
+	}
 }
 
 CCSBotMoveTo(bot, Float:origin[3]) {
