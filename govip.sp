@@ -88,7 +88,7 @@ public OnClientPutInServer(client) {
 }
 
 public OnClientDisconnect(client) {
-	if(CurrentState != VIPState_Playing || client != CurrentVIP || RoundComplete) {
+	if (CurrentState != VIPState_Playing || client != CurrentVIP || RoundComplete) {
 		return;
 	}
 	
@@ -116,14 +116,13 @@ public Event_RoundStart(Handle:event, const String:name[], bool:dontBroadcast) {
 	
 	CurrentVIP = GetRandomPlayerOnTeam(CS_TEAM_CT, LastVIP);
 	
-	if(CurrentState != VIPState_Playing) {
+	if (CurrentState != VIPState_Playing) {
 		return;
 	}
 	
 	new arraysize = GetArraySize(AllRescueZones);
 	
-	if (!arraysize)
-	{
+	if (!arraysize) {
 		PrintToChatAll("%s %s", GOVIP_PREFIX, "No rescue Zones Found :(");
 		return;
 	}
@@ -135,22 +134,25 @@ public Event_RoundStart(Handle:event, const String:name[], bool:dontBroadcast) {
 	GetCenterOfTwoPoints(randomzonearray, randomzonearray[3], BotIdealRescueZone);
 	
 	for (new i = 1; i <= MaxClients; i++) {
-		if (IsClientInGame(i) && IsPlayerAlive(i)) {
-			new iWeapon = GetPlayerWeaponSlot(i, 4);
-			if (iWeapon != -1 && IsValidEdict(iWeapon)) {
-				decl String:szClassName[64];
-				GetEdictClassname(iWeapon, szClassName, sizeof(szClassName));
-				if (StrEqual(szClassName, "weapon_c4", false)) {
-					RemovePlayerItem(i, iWeapon);
-					AcceptEntityInput(iWeapon, "Kill");
-				}
-			}
+		if (!IsClientInGame(i) || !IsPlayerAlive(i)) {
+			continue;
+		}
+		
+		new iWeapon = GetPlayerWeaponSlot(i, 4);
+		if (iWeapon == -1 || !IsValidEdict(iWeapon)) {
+			continue;
+		}
+		
+		decl String:szClassName[64];
+		if (GetEdictClassname(iWeapon, szClassName, sizeof(szClassName)) && StrEqual(szClassName, "weapon_c4", false)) {
+			RemovePlayerItem(i, iWeapon);
+			AcceptEntityInput(iWeapon, "Kill");
 		}
 	}
 	
 	RemoveMapObj();
 	
-	if(CurrentVIP == 0 || !IsValidPlayer(CurrentVIP)) {
+	if (CurrentVIP == 0 || !IsValidPlayer(CurrentVIP)) {
 		return;
 	}
 	
@@ -160,7 +162,7 @@ public Event_RoundStart(Handle:event, const String:name[], bool:dontBroadcast) {
 }
 
 public Event_RoundEnd(Handle:event, const String:name[], bool:dontBroadcast) {
-	if(CurrentState != VIPState_Playing) {
+	if (CurrentState != VIPState_Playing) {
 		return;
 	}
 	
@@ -168,14 +170,14 @@ public Event_RoundEnd(Handle:event, const String:name[], bool:dontBroadcast) {
 }
 
 public Action:Event_PlayerDeath(Handle:event, const String:name[], bool:dontBroadcast) {
-	if(CurrentState != VIPState_Playing) {
+	if (CurrentState != VIPState_Playing) {
 		return Plugin_Continue;
 	}
 	
 	new userid = GetEventInt(event, "userid");
 	new client = GetClientOfUserId(userid);
 	
-	if(client != CurrentVIP || RoundComplete) {
+	if (client != CurrentVIP || RoundComplete) {
 		return Plugin_Continue;
 	}
 	
@@ -191,14 +193,14 @@ public Action:Event_PlayerDeath(Handle:event, const String:name[], bool:dontBroa
 }
 
 public Action:Event_PlayerSpawn(Handle:event, const String:name[], bool:dontBroadcast) {
-	if(CurrentState != VIPState_Playing) {
+	if (CurrentState != VIPState_Playing) {
 		return Plugin_Continue;
 	}
 	
 	new userid = GetEventInt(event, "userid");
 	new client = GetClientOfUserId(userid);
 	
-	if(client != CurrentVIP) {
+	if (client != CurrentVIP) {
 		return Plugin_Continue;
 	}
 	
@@ -209,7 +211,7 @@ public Action:Event_PlayerSpawn(Handle:event, const String:name[], bool:dontBroa
 	GivePlayerItem(client, "weapon_knife");
 	new index = GivePlayerItem(client, VIPWeapon);
 	
-	if(index != -1) {
+	if (index != -1) {
 		SetAmmo(client, index, GetConVarInt(CVarVIPAmmo));
 	}	
 	
@@ -217,7 +219,7 @@ public Action:Event_PlayerSpawn(Handle:event, const String:name[], bool:dontBroa
 }
 
 public Action:OnReadConf(client, argc) {
-	if (client && !IsClientInGame(client)){
+	if (client && !IsClientInGame(client)) {
 		return Plugin_Handled;
 	}
 	
@@ -235,37 +237,37 @@ public Action:GOVIP_MainLoop(Handle:timer) {
 	new CTCount = GetTeamClientCount(CS_TEAM_CT);
 	new TCount = GetTeamClientCount(CS_TEAM_T);
 	
-	if(CurrentState == VIPState_WaitingForMinimumPlayers) {
-		if(CTCount >= GetConVarInt(CVarMinCT) && TCount >= GetConVarInt(CVarMinT)) {
+	if (CurrentState == VIPState_WaitingForMinimumPlayers) {
+		if (CTCount >= GetConVarInt(CVarMinCT) && TCount >= GetConVarInt(CVarMinT)) {
 			CurrentState = VIPState_Playing;
 			PrintToChatAll("%s %s", GOVIP_PREFIX, "Starting the game!");
 			return Plugin_Continue;
 		}
 	}
-	else if(CurrentState == VIPState_Playing) {
-		if(TCount < GetConVarInt(CVarMinT) || CTCount < GetConVarInt(CVarMinCT)) {
+	else if (CurrentState == VIPState_Playing) {
+		if (TCount < GetConVarInt(CVarMinT) || CTCount < GetConVarInt(CVarMinCT)) {
 			CurrentState = VIPState_WaitingForMinimumPlayers;
 			PrintToChatAll("%s %s", GOVIP_PREFIX, "Game paused, waiting for more players.");
 			return Plugin_Continue;
 		}
 		
-		if(CurrentVIP == 0) {
+		if (CurrentVIP == 0) {
 			RoundComplete = true;
 			
 			CurrentVIP = GetRandomPlayerOnTeam(CS_TEAM_CT, LastVIP);
 				
 			CS_TerminateRound(5.0, CSRoundEnd_GameStart); 
 		}
-		else if(!RoundComplete && IsValidPlayer(CurrentVIP)) {
+		else if (!RoundComplete && IsValidPlayer(CurrentVIP)) {
 			new Float:vipOrigin[3];
 			GetClientAbsOrigin(CurrentVIP, vipOrigin);
 			
-			if(GetArraySize(AllRescueZones) > 0) {				
-				for(new pl = 1; pl < MaxClients; pl++) {
-					if(IsValidPlayer(pl) && IsFakeClient(pl)) {
+			if (GetArraySize(AllRescueZones) > 0) {				
+				for (new pl = 1; pl < MaxClients; pl++) {
+					if (IsValidPlayer(pl) && IsFakeClient(pl)) {
 						new Float:plOrigin[3];
 						GetClientAbsOrigin(pl, plOrigin);
-						if(GetVectorDistance(BotIdealRescueZone, plOrigin) <= 500 && pl != CurrentVIP) {
+						if (GetVectorDistance(BotIdealRescueZone, plOrigin) <= 500 && pl != CurrentVIP) {
 							continue;
 						}
 						
@@ -277,10 +279,10 @@ public Action:GOVIP_MainLoop(Handle:timer) {
 			new rescueZoneCount = GetArraySize(AllRescueZones);
 			decl Float:rescueZone[GOVIP_INTVECSIZE];
 			
-			for(new rescueZoneIndex = 0; rescueZoneIndex < rescueZoneCount; rescueZoneIndex++) {
+			for (new rescueZoneIndex = 0; rescueZoneIndex < rescueZoneCount; rescueZoneIndex++) {
 				GetArrayArray(AllRescueZones, rescueZoneIndex, rescueZone, sizeof(rescueZone));
 				
-				if(IsVectorInsideMinMaxBounds(vipOrigin, rescueZone, rescueZone[(sizeof(rescueZone)/2)])) { // seem good? Yeah, we should throw it into a stock probably,  yeah
+				if (IsVectorInsideMinMaxBounds(vipOrigin, rescueZone, rescueZone[(sizeof(rescueZone)/2)])) { // seem good? Yeah, we should throw it into a stock probably,  yeah
 					RoundComplete = true;
 					
 					LastVIP = CurrentVIP;
@@ -321,7 +323,7 @@ public Action:OnTakeDamage(victim, &attacker, &inflictor, &Float:damage, &damage
 }
 
 public Action:OnWeaponCanUse(client, weapon) {
-	if(CurrentState != VIPState_Playing || client != CurrentVIP) {
+	if (CurrentState != VIPState_Playing || client != CurrentVIP) {
 		return Plugin_Continue;
 	}
 	
@@ -331,16 +333,16 @@ public Action:OnWeaponCanUse(client, weapon) {
 	
 	new String:VIPWeapon[256];
 	GetConVarString(CVarVIPWeapon, VIPWeapon, sizeof(VIPWeapon));
-	 
-	if(StrEqual(entityClassName, "weapon_knife", false) || StrEqual(entityClassName, VIPWeapon, false)) {
+	
+	if (StrEqual(entityClassName, "weapon_knife", false) || StrEqual(entityClassName, VIPWeapon, false)) {
 		return Plugin_Continue;
 	}
 	
 	return Plugin_Handled;
 }
 
-public Action:Command_JoinTeam(client, const String:command[], argc)  {
-	if(CurrentState != VIPState_Playing || client != CurrentVIP) {
+public Action:Command_JoinTeam(client, const String:command[], argc) {
+	if (CurrentState != VIPState_Playing || client != CurrentVIP) {
 		return Plugin_Continue;
 	}
 	
@@ -349,7 +351,7 @@ public Action:Command_JoinTeam(client, const String:command[], argc)  {
 }
 
 bool:IsValidPlayer(client) {
-	if(!IsValidEntity(client) || !IsClientConnected(client) || !IsClientInGame(client)) {
+	if (!IsValidEntity(client) || !IsClientConnected(client) || !IsClientInGame(client)) {
 		return false;
 	}
 	
@@ -366,8 +368,8 @@ ProcessConfigurationFiles()
 	decl Float:rescueZone[2][3];
 	decl Float:BiggerVector[(sizeof(rescueZone) * sizeof(rescueZone[]))];
 	
-	while((trigger = FindEntityByClassname(trigger, "trigger_multiple")) != -1) {
-		if(GetEntPropString(trigger, Prop_Data, "m_iName", buffer, sizeof(buffer))
+	while ((trigger = FindEntityByClassname(trigger, "trigger_multiple")) != -1) {
+		if (GetEntPropString(trigger, Prop_Data, "m_iName", buffer, sizeof(buffer))
 			&& StrContains(buffer, "vip_rescue_zone", false) == 0) {
 			
 			GetEntPropVector(trigger, Prop_Send, "m_WorldMins", rescueZone[0]);
@@ -383,19 +385,18 @@ ProcessConfigurationFiles()
 	
 	decl String:coords[GOVIP_INTVECSIZE][128];
 	decl Float:toarray[sizeof(coords)];
-	for(new x = 0; x < sizeof(CVarRescueZone); x++) {
+	for (new x = 0; x < sizeof(CVarRescueZone); x++) {
 		GetConVarString(CVarRescueZone[x], buffer, sizeof(buffer));
 		
 		TrimString(buffer);
 		
-		if(buffer[0] == '\0' || StrEqual(buffer, "") || StrEqual(buffer, "0") || StrEqual(buffer, "false", false) || StrEqual(buffer, "off", false)) {
+		if (buffer[0] == '\0' || StrEqual(buffer, "") || StrEqual(buffer, "0") || StrEqual(buffer, "false", false) || StrEqual(buffer, "off", false)) {
 			continue;
 		}
 		
 		ExplodeString(buffer, " ", coords, sizeof(coords), sizeof(coords[]));
 		
-		for (new i; i < sizeof(coords); i++)
-		{
+		for (new i; i < sizeof(coords); i++) {
 			toarray[i] = StringToFloat(coords[i]);
 		}
 		
@@ -404,8 +405,7 @@ ProcessConfigurationFiles()
 		PrintToServer("%s Loading legacy rescue zone beginning at [%s, %s, %s], ending at [%s, %s, %s].", GOVIP_PREFIX, coords[0], coords[1], coords[2], coords[3], coords[4], coords[5]);
 	}
 		
-	if (!GetCurrentMap(buffer, sizeof(buffer)))
-	{
+	if (!GetCurrentMap(buffer, sizeof(buffer))) {
 		return; /* Should never happen... We should maybe even throw an error. */
 	}
 	
@@ -416,7 +416,7 @@ ProcessConfigurationFiles()
 	
 	FileToKeyValues(kv, path);
 	
-	if(KvJumpToKey(kv, buffer)) {
+	if (KvJumpToKey(kv, buffer)) {
 		KvGotoFirstSubKey(kv);
 		decl String:endcoords[(sizeof(coords)/2)][sizeof(coords[])];
 		do {
@@ -429,13 +429,11 @@ ProcessConfigurationFiles()
 
 			PrintToServer("%s Loading rescue zone beginning at [%s, %s, %s], ending at [%s, %s, %s].", GOVIP_PREFIX, coords[0], coords[1], coords[2], endcoords[0], endcoords[1], endcoords[2]);
 			
-			for (new i; i < sizeof(endcoords); i++)
-			{
+			for (new i; i < sizeof(endcoords); i++) {
 				toarray[i] = StringToFloat(coords[i]);
 			}
 			
-			for (new i = 3; i < sizeof(coords); i++)
-			{
+			for (new i = 3; i < sizeof(coords); i++) {
 				toarray[i] = StringToFloat(endcoords[(i - 3)]);
 			}
 			
@@ -449,7 +447,7 @@ ProcessConfigurationFiles()
 GetRandomPlayerOnTeam(team, ignore = 0) {
 	new teamClientCount = GetTeamClientCount(team);
 	
-	if(teamClientCount <= 0) {
+	if (teamClientCount <= 0) {
 		return 0;
 	}
 	
@@ -457,7 +455,7 @@ GetRandomPlayerOnTeam(team, ignore = 0) {
 	
 	do {
 		client = GetRandomInt(1, MaxClients);
-	} while((teamClientCount > 1 && client == ignore) || !IsClientInGame(client) || GetClientTeam(client) != team);
+	} while ((teamClientCount > 1 && client == ignore) || !IsClientInGame(client) || GetClientTeam(client) != team);
 	
 	return client;
 }
@@ -470,11 +468,11 @@ stock RemoveMapObj() {
 									*/
 								
 	for (new i=MaxClients;i<maxent;i++) {
-		if(!IsValidEdict(i) || !IsValidEntity(i)) {
+		if (!IsValidEdict(i) || !IsValidEntity(i)) {
 			continue;
 		}
 		
-		if(GetEdictClassname(i, Class, sizeof(Class)) \
+		if (GetEdictClassname(i, Class, sizeof(Class))
 			&& StrContains("func_bomb_target_hostage_entity_func_hostage_rescue",Class) != -1) {
 			AcceptEntityInput(i, "Kill");
 		}
@@ -484,7 +482,7 @@ stock RemoveMapObj() {
 StripWeapons(client) {
 	new weaponID;
 	
-	for(new x = CS_SLOT_PRIMARY; x <= CS_SLOT_C4; x++) {
+	for (new x = CS_SLOT_PRIMARY; x <= CS_SLOT_C4; x++) {
 		while ((weaponID = GetPlayerWeaponSlot(client, x)) != -1) {
 			RemovePlayerItem(client, weaponID);
 			AcceptEntityInput(weaponID, "Kill");
@@ -509,11 +507,11 @@ AddVectorsToLargerVector(const Float:first[3], const Float:second[3], Float:bigg
 }
 
 public TouchRescueZone(trigger, client) {
-	if(!IsValidPlayer(client)) {
+	if (!IsValidPlayer(client)) {
 		return;
 	}
 	
-	if(CurrentState != VIPState_Playing || client != CurrentVIP || RoundComplete) {
+	if (CurrentState != VIPState_Playing || client != CurrentVIP || RoundComplete) {
 		return;
 	}
 	
