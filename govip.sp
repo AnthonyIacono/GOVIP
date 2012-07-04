@@ -32,6 +32,7 @@ new Handle:CVarVIPAmmo = INVALID_HANDLE;
 new MyWeaponsOffset = 0;
 new Handle:RescueZones = INVALID_HANDLE;
 new bool:RoundComplete = false;
+new Handle:hBotMoveTo = INVALID_HANDLE;
 
 // 02. Forwards
 public OnPluginStart() {
@@ -50,7 +51,18 @@ public OnPluginStart() {
 	
 	RescueZones = CreateArray();
 	
+	new Handle:hGameConf = LoadGameConfigFile("plugin.govip");
+	StartPrepSDKCall(SDKCall_Player);
+	PrepSDKCall_SetFromConf(hGameConf, SDKConf_Signature, "CCSBotMoveTo");
+	PrepSDKCall_AddParameter(SDKType_Vector, SDKPass_ByRef);
+	PrepSDKCall_AddParameter(SDKType_PlainOldData, SDKPass_Plain);
+	hBotMoveTo = EndPrepSDKCall();
+	
 	RoundComplete = false;
+}
+
+CCSBotMoveTo(bot, Float:origin[3]) {
+	SDKCall(hBotMoveTo, bot, origin, 0);
 }
 
 public OnClientPutInServer(client) {
@@ -240,6 +252,21 @@ public Action:GOVIP_MainLoop(Handle:timer) {
 			GetClientAbsOrigin(CurrentVIP, vipOrigin);
 			
 			new rescueZoneCount = GetArraySize(RescueZones);
+			
+			if(rescueZoneCount > 0) {
+				new Handle:rescueZone = GetArrayCell(RescueZones, 0);
+					
+				new Float:idealRescueZone[3];
+				idealRescueZone[0] = GetArrayCell(rescueZone, 1);
+				idealRescueZone[1] = GetArrayCell(rescueZone, 2);
+				idealRescueZone[2] = GetArrayCell(rescueZone, 3);
+					
+				for(new pl = 1; pl < MaxClients; pl++) {
+					if(IsValidPlayer(pl) && IsFakeClient(pl)) {
+						CCSBotMoveTo(pl, idealRescueZone);
+					}
+				}	
+			}
 			
 			for(new rescueZoneIndex = 0; rescueZoneIndex < rescueZoneCount; rescueZoneIndex++) {
 				new Handle:rescueZone = GetArrayCell(RescueZones, rescueZoneIndex);
