@@ -17,6 +17,7 @@
 // 01. Globals
 #define GOVIP_MAINLOOP_INTERVAL 0.1
 #define GOVIP_MAXPLAYERS 64
+#define GOVIP_PREFIX "[GO:VIP]"
 
 enum VIPState {
 	VIPState_WaitingForMinimumPlayers = 0,
@@ -92,7 +93,7 @@ public OnClientDisconnect(client) {
 	
 	LastVIP = CurrentVIP;
 	
-	PrintToChatAll("%s", "[GO:VIP] The VIP has left, round ends in a draw.");
+	PrintToChatAll("%s %s", GOVIP_PREFIX, "The VIP has left, round ends in a draw.");
 	
 	CS_TerminateRound(5.0, CSRoundEnd_Draw);
 }
@@ -146,7 +147,7 @@ public Event_RoundStart(Handle:event, const String:name[], bool:dontBroadcast) {
 		return;
 	}
 	
-	PrintToChatAll("[GO:VIP] %N is the VIP, CTs protect the VIP from the Terrorists!", CurrentVIP);
+	PrintToChatAll("%s %N %s", GOVIP_PREFIX, CurrentVIP, "is the VIP, CTs protect the VIP from the Terrorists!");
 	
 	return;
 }
@@ -175,7 +176,7 @@ public Action:Event_PlayerDeath(Handle:event, const String:name[], bool:dontBroa
 	
 	CS_TerminateRound(5.0, CSRoundEnd_TerroristWin);
 	
-	PrintToChatAll("%s", "[GO:VIP] The VIP has died, Terrorists win!");
+	PrintToChatAll("%s %s", GOVIP_PREFIX, "The VIP has died, Terrorists win!");
 	
 	LastVIP = CurrentVIP;
 	
@@ -213,7 +214,7 @@ public Action:OnReadConf(client, argc) {
 		return Plugin_Handled;
 	}
 	
-	ReplyToCommand(client, "[GO:VIP] Rereading the Main configuration files.");
+	ReplyToCommand(client, "%s %s", GOVIP_PREFIX, "Rereading the Main configuration files.");
 	ProcessConfigurationFiles();
 	return Plugin_Handled;
 }
@@ -230,14 +231,14 @@ public Action:GOVIP_MainLoop(Handle:timer) {
 	if(CurrentState == VIPState_WaitingForMinimumPlayers) {
 		if(CTCount >= GetConVarInt(CVarMinCT) && TCount >= GetConVarInt(CVarMinT)) {
 			CurrentState = VIPState_Playing;
-			PrintToChatAll("%s", "[GO:VIP] Starting the game!");
+			PrintToChatAll("%s %s", GOVIP_PREFIX, "Starting the game!");
 			return Plugin_Continue;
 		}
 	}
 	else if(CurrentState == VIPState_Playing) {
 		if(TCount < GetConVarInt(CVarMinT) || CTCount < GetConVarInt(CVarMinCT)) {
 			CurrentState = VIPState_WaitingForMinimumPlayers;
-			PrintToChatAll("%s", "[GO:VIP] Game paused, waiting for more players.");
+			PrintToChatAll("%s %s", GOVIP_PREFIX, "Game paused, waiting for more players.");
 			return Plugin_Continue;
 		}
 		
@@ -286,7 +287,7 @@ public Action:GOVIP_MainLoop(Handle:timer) {
 					
 					CS_TerminateRound(5.0, CSRoundEnd_CTWin);
 					
-					PrintToChatAll("%s", "[GO:VIP] The VIP has been rescued, Counter-Terrorists win.");
+					PrintToChatAll("%s %s", GOVIP_PREFIX, "The VIP has been rescued, Counter-Terrorists win.");
 					
 					break;
 				}
@@ -330,7 +331,7 @@ public Action:Command_JoinTeam(client, const String:command[], argc)  {
 		return Plugin_Continue;
 	}
 	
-	PrintToChat(client, "%s", "[GO:VIP] You are not allowed to change teams while you are the VIP.");
+	PrintToChat(client, "%s %s", GOVIP_PREFIX, "You are not allowed to change teams while you are the VIP.");
 	return Plugin_Handled;
 }
 
@@ -369,7 +370,7 @@ ProcessConfigurationFiles()
 			new String:coords[3][128];
 			ExplodeString(buffer, " ", coords, 3, 128);
 
-			PrintToServer("[GO:VIP] Loading rescue zone at [%s, %s, %s] with radius of %f units.", coords[0], coords[1], coords[2], radius);
+			PrintToServer("%s Loading rescue zone at [%s, %s, %s] with radius of %f units.", GOVIP_PREFIX, coords[0], coords[1], coords[2], radius);
 						
 			new Handle:rescueZone = CreateArray();
 			PushArrayCell(rescueZone, radius);
@@ -457,5 +458,5 @@ public TouchRescueZone(trigger, client) {
 	
 	LastVIP = CurrentVIP;
 	
-	PrintToChatAll("[GO:VIP] The VIP has been rescued, Counter-Terrorists win.");
+	PrintToChatAll("%s %s", GOVIP_PREFIX, "The VIP has been rescued, Counter-Terrorists win.");
 }
