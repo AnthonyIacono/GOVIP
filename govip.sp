@@ -33,8 +33,10 @@ new Handle:CVarVIPWeapon = INVALID_HANDLE;
 new Handle:CVarVIPAmmo = INVALID_HANDLE;
 new MyWeaponsOffset = 0;
 new Handle:RescueZones = INVALID_HANDLE;
+new Handle:AllRescueZones = INVALID_HANDLE; // Kinda ugly but this contains map entities too.
 new bool:RoundComplete = false;
 new Handle:hBotMoveTo = INVALID_HANDLE;
+new Float:BotIdealRescueZone[3];
 
 // 02. Forwards
 public OnPluginStart() {
@@ -55,6 +57,7 @@ public OnPluginStart() {
 	MyWeaponsOffset = FindSendPropOffs("CBaseCombatCharacter", "m_hMyWeapons");
 	
 	RescueZones = CreateArray();
+	AllRescueZones = CreateArray();
 	
 	new Handle:hGameConf = LoadGameConfigFile("plugin.govip");
 	StartPrepSDKCall(SDKCall_Player);
@@ -99,16 +102,6 @@ public OnClientDisconnect(client) {
 }
 
 public OnMapStart() {
-	new trigger = -1;
-	decl String:buffer[512];
-	
-	while((trigger = FindEntityByClassname(trigger, "trigger_multiple")) != -1) {
-		if(GetEntPropString(trigger, Prop_Data, "m_iName", buffer, sizeof(buffer)) \
-			&& StrContains(buffer, "vip_rescue_zone", false) == 0) {
-			SDKHook(trigger, SDKHook_Touch, TouchRescueZone);
-		}
-	}
-	
 	CreateTimer(GOVIP_MAINLOOP_INTERVAL, GOVIP_MainLoop, INVALID_HANDLE, TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);
 }
 
@@ -126,6 +119,12 @@ public Event_RoundStart(Handle:event, const String:name[], bool:dontBroadcast) {
 	if(CurrentState != VIPState_Playing) {
 		return;
 	}
+	
+	new randomZoneIndex = GetRandomInt(0, GetArraySize(AllRescueZones) - 1);
+	new Handle:randomRescueZone = GetArrayCell(AllRescueZones, randomZoneIndex);
+	BotIdealRescueZone[0] = GetArrayCell(randomRescueZone, 0);
+	BotIdealRescueZone[1] = GetArrayCell(randomRescueZone, 1);
+	BotIdealRescueZone[2] = GetArrayCell(randomRescueZone, 2);
 	
 	for (new i = 1; i <= MaxClients; i++) {
 		if (IsClientInGame(i) && IsPlayerAlive(i)) {
@@ -253,38 +252,31 @@ public Action:GOVIP_MainLoop(Handle:timer) {
 			new Float:vipOrigin[3];
 			GetClientAbsOrigin(CurrentVIP, vipOrigin);
 			
-			new rescueZoneCount = GetArraySize(RescueZones);
-			
-			if(rescueZoneCount > 0) {
-				new Handle:rescueZone = GetArrayCell(RescueZones, 0);
-					
-				new Float:idealRescueZone[3];
-				idealRescueZone[0] = GetArrayCell(rescueZone, 1);
-				idealRescueZone[1] = GetArrayCell(rescueZone, 2);
-				idealRescueZone[2] = GetArrayCell(rescueZone, 3);
-					
+			if(GetArraySize(AllRescueZones) > 0) {				
 				for(new pl = 1; pl < MaxClients; pl++) {
 					if(IsValidPlayer(pl) && IsFakeClient(pl)) {
 						new Float:plOrigin[3];
 						GetClientAbsOrigin(pl, plOrigin);
-						if(GetVectorDistance(idealRescueZone, plOrigin) <= 500 && pl != CurrentVIP) {
+						if(GetVectorDistance(BotIdealRescueZone, plOrigin) <= 500 && pl != CurrentVIP) {
 							continue;
 						}
 						
-						CCSBotMoveTo(pl, idealRescueZone);
+						CCSBotMoveTo(pl, BotIdealRescueZone);
 					}
 				}	
 			}
+			
+			new rescueZoneCount = GetArraySize(RescueZones);
 			
 			for(new rescueZoneIndex = 0; rescueZoneIndex < rescueZoneCount; rescueZoneIndex++) {
 				new Handle:rescueZone = GetArrayCell(RescueZones, rescueZoneIndex);
 				
 				new Float:rescueZoneOrigin[3];
-				rescueZoneOrigin[0] = GetArrayCell(rescueZone, 1);
-				rescueZoneOrigin[1] = GetArrayCell(rescueZone, 2);
-				rescueZoneOrigin[2] = GetArrayCell(rescueZone, 3);
+				rescueZoneOrigin[0] = GetArrayCell(rescueZone, 0);
+				rescueZoneOrigin[1] = GetArrayCell(rescueZone, 1);
+				rescueZoneOrigin[2] = GetArrayCell(rescueZone, 2);
 				
-				new Float:rescueZoneRadius = GetArrayCell(rescueZone, 0);
+				new Float:rescueZoneRadius = GetArrayCell(rescueZone, 3);
 				
 				if(GetVectorDistance(rescueZoneOrigin, vipOrigin) <= rescueZoneRadius) {
 					RoundComplete = true;
@@ -352,6 +344,29 @@ bool:IsValidPlayer(client) {
 ProcessConfigurationFiles()
 {
 	decl String:buffer[512];
+	
+	new trigger = -1;
+
+	ClearArray(AllRescueZones);
+	
+	while((trigger = FindEntityByClassname(trigger, "trigger_multiple")) != -1) {
+		if(GetEntPropString(trigger, Prop_Data, "m_iName", buffer, sizeof(buffer))
+			&& StrContains(buffer, "vip_rescue_zone", false) == 0) {
+			new Handle:rescueZone = CreateArray();
+			
+			new Float:rescueZoneOrigin[3];
+			GetEntPropVector(trigger, Prop_Send, "m_vecOrigin", rescueZoneOrigin);
+
+			PushArrayCell(rescueZone, rescueZoneOrigin[0]);
+			PushArrayCell(rescueZone, rescueZoneOrigin[1]);
+			PushArrayCell(rescueZone, rescueZoneOrigin[2]);
+			
+			PushArrayCell(AllRescueZones, rescueZone);
+			
+			SDKHook(trigger, SDKHook_Touch, TouchRescueZone);
+		}
+	}
+	
 	ClearArray(RescueZones);
 	
 	if (!GetCurrentMap(buffer, sizeof(buffer)))
@@ -379,12 +394,13 @@ ProcessConfigurationFiles()
 			PrintToServer("%s Loading rescue zone at [%s, %s, %s] with radius of %f units.", GOVIP_PREFIX, coords[0], coords[1], coords[2], radius);
 						
 			new Handle:rescueZone = CreateArray();
-			PushArrayCell(rescueZone, radius);
 			PushArrayCell(rescueZone, StringToFloat(coords[0]));
 			PushArrayCell(rescueZone, StringToFloat(coords[1]));
 			PushArrayCell(rescueZone, StringToFloat(coords[2]));
+			PushArrayCell(rescueZone, radius);
 			
 			PushArrayCell(RescueZones, rescueZone);
+			PushArrayCell(AllRescueZones, rescueZone);
 		} while (KvGotoNextKey(kv));
 	}	
 	
