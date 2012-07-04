@@ -44,7 +44,8 @@ public OnPluginStart() {
 	
 	CurrentState = VIPState_WaitingForMinimumPlayers;
 	
-	HookEvent("round_start", Event_RoundStart);
+	HookEvent("round_start", Event_RoundStart, EventHookMode_PostNoCopy);
+	HookEvent("round_end", Event_RoundEnd, EventHookMode_PostNoCopy);
 	HookEvent("player_death", Event_PlayerDeath);
 	HookEvent("player_spawn", Event_PlayerSpawn);
 	
@@ -144,13 +145,13 @@ public OnMapStart() {
 }
 
 // 03. Events
-public Action:Event_RoundStart(Handle:event, const String:name[], bool:dontBroadcast) {
+public Event_RoundStart(Handle:event, const String:name[], bool:dontBroadcast) {
 	RoundComplete = false;
 	
 	CurrentVIP = GetRandomPlayerOnTeam(CS_TEAM_CT, LastVIP);
 	
 	if(CurrentState != VIPState_Playing) {
-		return Plugin_Continue;
+		return;
 	}
 	
 	for (new i = 1; i <= MaxClients; i++) {
@@ -166,16 +167,24 @@ public Action:Event_RoundStart(Handle:event, const String:name[], bool:dontBroad
 			}
 		}
 	}
-		
+	
 	RemoveMapObj();
-		
+	
 	if(CurrentVIP == 0 || !IsValidPlayer(CurrentVIP)) {
-		return Plugin_Continue;
+		return;
 	}
 	
 	PrintToChatAll("[GO:VIP] %N is the VIP, CTs protect the VIP from the Terrorists!", CurrentVIP);
 	
-	return Plugin_Continue;
+	return;
+}
+
+public Event_RoundEnd(Handle:event, const String:name[], bool:dontBroadcast) {
+	if(CurrentState != VIPState_Playing) {
+		return;
+	}
+	
+	RoundComplete = true; /* The round is 'ogre'. No point in continuing to track stats. */
 }
 
 public Action:Event_PlayerDeath(Handle:event, const String:name[], bool:dontBroadcast) {
