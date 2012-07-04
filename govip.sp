@@ -6,7 +6,8 @@
  * 04. Functions
  */
  
-// 00. Includes     
+// 00. Includes
+#pragma semicolon 1
 #include <sourcemod>
 #include <cstrike>
 #include <sdktools>
@@ -163,8 +164,8 @@ public Action:Event_RoundStart(Handle:event, const String:name[], bool:dontBroad
 					AcceptEntityInput(iWeapon, "Kill");
 				}
 			}
-    	}
-    }
+		}
+	}
 		
 	RemoveMapObj();
 		
@@ -307,8 +308,7 @@ public Action:GOVIP_MainLoop(Handle:timer) {
 
 public Action:OnTakeDamage(victim, &attacker, &inflictor, &Float:damage, &damagetype)
 {
-	if (!RoundComplete || victim != CurrentVIP || victim == attacker || victim == inflictor)
-	{
+	if (!RoundComplete || victim != CurrentVIP || victim == attacker || victim == inflictor) {
 		return Plugin_Continue; /* We don't care! */
 	}
 	
@@ -361,7 +361,7 @@ GetRandomPlayerOnTeam(team, ignore = 0) {
 	new client;
 	
 	do {
-	    client = GetRandomInt(1, MaxClients);
+		client = GetRandomInt(1, MaxClients);
 	} while((teamClientCount > 1 && client == ignore) || !IsClientInGame(client) || GetClientTeam(client) != team);
 	
 	return client;
@@ -388,25 +388,25 @@ stock RemoveMapObj() {
 
 
 StripWeapons(client) {
-    new weaponID;
-    
+	new weaponID;
+	
 	for(new x = 0; x < 20; x = (x + 4)) {
-        weaponID = GetEntDataEnt2(client, MyWeaponsOffset + x);
-        
+		weaponID = GetEntDataEnt2(client, MyWeaponsOffset + x);
+		
 		if(weaponID <= 0) {
 			continue;
 		}
-        
-        new String:weaponClassName[128];
-        GetEntityClassname(weaponID, weaponClassName, sizeof(weaponClassName));
-        
-        if(StrEqual(weaponClassName, "weapon_knife", false)) {
-        	continue;
+		
+		new String:weaponClassName[128];
+		GetEntityClassname(weaponID, weaponClassName, sizeof(weaponClassName));
+		
+		if(StrEqual(weaponClassName, "weapon_knife", false)) {
+			continue;
 		}
-        
+		
 		RemovePlayerItem(client, weaponID);
-        RemoveEdict(weaponID);
-    }
+		RemoveEdict(weaponID);
+	}
 }
 
 public TouchRescueZone(trigger, client) {
@@ -414,15 +414,15 @@ public TouchRescueZone(trigger, client) {
 		return;
 	} 
 	
-    if(CurrentState != VIPState_Playing || client != CurrentVIP || RoundComplete) {
-    	return;
-    }
-    
-    RoundComplete = true;
-    
-    CS_TerminateRound(5.0, CSRoundEnd_CTWin);
-    
-    LastVIP = CurrentVIP;
+	if(CurrentState != VIPState_Playing || client != CurrentVIP || RoundComplete) {
+		return;
+	}
+	
+	RoundComplete = true;
+	
+	CS_TerminateRound(5.0, CSRoundEnd_CTWin);
+	
+	LastVIP = CurrentVIP;
 	
 	PrintToChatAll("[GO:VIP] The VIP has been rescued, Counter-Terrorists win.");
 }
