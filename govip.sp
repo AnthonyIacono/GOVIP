@@ -67,6 +67,7 @@ CCSBotMoveTo(bot, Float:origin[3]) {
 
 public OnClientPutInServer(client) {
 	SDKHook(client, SDKHook_WeaponCanUse, OnWeaponCanUse);
+	SDKHook(client, SDKHook_OnTakeDamage, OnTakeDamage);
 	return true;
 }
 
@@ -294,6 +295,16 @@ public Action:GOVIP_MainLoop(Handle:timer) {
 	}
 	
 	return Plugin_Continue;
+}
+
+public Action:OnTakeDamage(victim, &attacker, &inflictor, &Float:damage, &damagetype)
+{
+	if (!RoundComplete || victim != CurrentVIP || victim == attacker || victim == inflictor)
+	{
+		return Plugin_Continue; /* We don't care! */
+	}
+	
+	return Plugin_Handled;
 }
 
 public Action:OnWeaponCanUse(client, weapon) {
