@@ -18,6 +18,7 @@
 #define GOVIP_MAINLOOP_INTERVAL 0.1
 #define GOVIP_MAXPLAYERS 64
 #define GOVIP_PREFIX "[GO:VIP]"
+#define GOVIP_INTVECSIZE 6
 
 enum VIPState {
 	VIPState_WaitingForMinimumPlayers = 0,
@@ -31,7 +32,6 @@ new Handle:CVarMinCT = INVALID_HANDLE;
 new Handle:CVarMinT = INVALID_HANDLE;
 new Handle:CVarVIPWeapon = INVALID_HANDLE;
 new Handle:CVarVIPAmmo = INVALID_HANDLE;
-new Handle:RescueZones = INVALID_HANDLE;
 new Handle:CVarRescueZone[2];
 
 new Handle:AllRescueZones = INVALID_HANDLE; // Kinda ugly but this contains map entities too.
@@ -57,8 +57,7 @@ public OnPluginStart() {
 	HookEvent("player_death", Event_PlayerDeath);
 	HookEvent("player_spawn", Event_PlayerSpawn);
 	
-	RescueZones = CreateArray();
-	AllRescueZones = CreateArray();
+	AllRescueZones = CreateArray(GOVIP_INTVECSIZE);
 	
 	new Handle:hGameConf = LoadGameConfigFile("plugin.govip");
 	StartPrepSDKCall(SDKCall_Player);
@@ -121,19 +120,19 @@ public Event_RoundStart(Handle:event, const String:name[], bool:dontBroadcast) {
 		return;
 	}
 	
-	new randomZoneIndex = GetRandomInt(0, GetArraySize(AllRescueZones) - 1);
-	new Handle:randomRescueZone = GetArrayCell(AllRescueZones, randomZoneIndex);
-	new Float:start[3];
-	start[0] = GetArrayCell(randomRescueZone, 0);
-	start[1] = GetArrayCell(randomRescueZone, 1);
-	start[2] = GetArrayCell(randomRescueZone, 2);
+	new arraysize = GetArraySize(AllRescueZones);
 	
-	new Float:end[3];
-	end[0] = GetArrayCell(randomRescueZone, 3);
-	end[1] = GetArrayCell(randomRescueZone, 4);
-	end[2] = GetArrayCell(randomRescueZone, 5);
+	if (!arraysize)
+	{
+		PrintToChatAll("%s %s", GOVIP_PREFIX, "No rescue Zones Found :(");
+		return;
+	}
 	
-	GetCenterOfTwoPoints(start, end, BotIdealRescueZone);
+	new randomZoneIndex = GetRandomInt(0,  - 1);
+	decl Float:randomzonearray[GOVIP_INTVECSIZE];
+	GetArrayArray(AllRescueZones, randomZoneIndex, randomzonearray, sizeof(randomzonearray));
+	
+	GetCenterOfTwoPoints(randomzonearray, randomzonearray[3], BotIdealRescueZone);
 	
 	for (new i = 1; i <= MaxClients; i++) {
 		if (IsClientInGame(i) && IsPlayerAlive(i)) {
@@ -275,22 +274,13 @@ public Action:GOVIP_MainLoop(Handle:timer) {
 				}	
 			}
 			
-			new rescueZoneCount = GetArraySize(RescueZones);
+			new rescueZoneCount = GetArraySize(AllRescueZones);
+			decl Float:rescueZone[GOVIP_INTVECSIZE];
 			
 			for(new rescueZoneIndex = 0; rescueZoneIndex < rescueZoneCount; rescueZoneIndex++) {
-				new Handle:rescueZone = GetArrayCell(RescueZones, rescueZoneIndex);
+				GetArrayArray(AllRescueZones, rescueZoneIndex, rescueZone, sizeof(rescueZone));
 				
-				new Float:rescueZoneStart[3];
-				rescueZoneStart[0] = GetArrayCell(rescueZone, 0);
-				rescueZoneStart[1] = GetArrayCell(rescueZone, 1);
-				rescueZoneStart[2] = GetArrayCell(rescueZone, 2);
-				
-				new Float:rescueZoneEnd[3];
-				rescueZoneEnd[0] = GetArrayCell(rescueZone, 3);
-				rescueZoneEnd[1] = GetArrayCell(rescueZone, 4);
-				rescueZoneEnd[2] = GetArrayCell(rescueZone, 5);
-				
-				if(IsVectorInsideMinMaxBounds(vipOrigin, rescueZoneStart, rescueZoneEnd)) { // seem good? Yeah, we should throw it into a stock probably,  yeah
+				if(IsVectorInsideMinMaxBounds(vipOrigin, rescueZone, rescueZone[(sizeof(rescueZone)/2)])) { // seem good? Yeah, we should throw it into a stock probably,  yeah
 					RoundComplete = true;
 					
 					LastVIP = CurrentVIP;
@@ -308,7 +298,7 @@ public Action:GOVIP_MainLoop(Handle:timer) {
 	return Plugin_Continue;
 }
 
-stock bool:IsVectorInsideMinMaxBounds(Float:vec[3], Float:min[3], Float:max[3]) {
+stock bool:IsVectorInsideMinMaxBounds(Float:vec[3], Float:min[], Float:max[]) {
 	// min max might be ordered differently than expected, so we have to do a little ternary work here
 	new Float:smallerX = min[0] < max[0] ? min[0] : max[0];
 	new Float:smallerY = min[1] < max[1] ? min[1] : max[1];
@@ -316,7 +306,7 @@ stock bool:IsVectorInsideMinMaxBounds(Float:vec[3], Float:min[3], Float:max[3]) 
 	new Float:largerX = min[0] > max[0] ? min[0] : max[0];
 	new Float:largerY= min[1] > max[1] ? min[1] : max[1];
 	new Float:largerZ = min[2] > max[2] ? min[2] : max[2];
-	
+
 	return vec[0] >= smallerX && vec[1] >= smallerY && vec[2] >= smallerZ &&
 		vec[0] <= largerX && vec[1] <= largerY && vec[2] <= largerZ;
 }
@@ -373,54 +363,47 @@ ProcessConfigurationFiles()
 	new trigger = -1;
 
 	ClearArray(AllRescueZones);
+	decl Float:rescueZone[2][3];
+	decl Float:BiggerVector[(sizeof(rescueZone) * sizeof(rescueZone[]))];
 	
 	while((trigger = FindEntityByClassname(trigger, "trigger_multiple")) != -1) {
 		if(GetEntPropString(trigger, Prop_Data, "m_iName", buffer, sizeof(buffer))
 			&& StrContains(buffer, "vip_rescue_zone", false) == 0) {
-			new Handle:rescueZone = CreateArray();
 			
-			new Float:rescueZoneOrigin[3];
-			GetEntPropVector(trigger, Prop_Send, "m_vecOrigin", rescueZoneOrigin);
-
-			PushArrayCell(rescueZone, rescueZoneOrigin[0]);
-			PushArrayCell(rescueZone, rescueZoneOrigin[1]);
-			PushArrayCell(rescueZone, rescueZoneOrigin[2]);
+			GetEntPropVector(trigger, Prop_Send, "m_WorldMins", rescueZone[0]);
+			GetEntPropVector(trigger, Prop_Send, "m_WorldMaxs", rescueZone[1]);
 			
-			PushArrayCell(AllRescueZones, rescueZone);
+			AddVectorsToLargerVector(rescueZone[0], rescueZone[1], BiggerVector);
+			
+			PushArrayArray(AllRescueZones, BiggerVector); /* Bot Support */
 			
 			SDKHook(trigger, SDKHook_Touch, TouchRescueZone);
 		}
 	}
 	
+	decl String:coords[GOVIP_INTVECSIZE][128];
+	decl Float:toarray[sizeof(coords)];
 	for(new x = 0; x < sizeof(CVarRescueZone); x++) {
 		GetConVarString(CVarRescueZone[x], buffer, sizeof(buffer));
 		
 		TrimString(buffer);
 		
-		if(strlen(buffer) == 0 || StrEqual(buffer, "") || StrEqual(buffer, "0") || StrEqual(buffer, "false", false) || StrEqual(buffer, "off", false)) {
+		if(buffer[0] == '\0' || StrEqual(buffer, "") || StrEqual(buffer, "0") || StrEqual(buffer, "false", false) || StrEqual(buffer, "off", false)) {
 			continue;
 		}
 		
-		new String:coords[6][128];
 		ExplodeString(buffer, " ", coords, sizeof(coords), sizeof(coords[]));
-						
-		new Handle:rescueZone = CreateArray();
 		
-		PushArrayCell(rescueZone, StringToFloat(coords[0]));
-		PushArrayCell(rescueZone, StringToFloat(coords[1]));
-		PushArrayCell(rescueZone, StringToFloat(coords[2]));
-		PushArrayCell(rescueZone, StringToFloat(coords[3]));
-		PushArrayCell(rescueZone, StringToFloat(coords[4]));
-		PushArrayCell(rescueZone, StringToFloat(coords[5]));
+		for (new i; i < sizeof(coords); i++)
+		{
+			toarray[i] = StringToFloat(coords[i]);
+		}
 		
-		PushArrayCell(RescueZones, rescueZone); // for the mainloop()
-		PushArrayCell(AllRescueZones, rescueZone); // for the bots
+		PushArrayArray(AllRescueZones, toarray, sizeof(toarray));
 		
 		PrintToServer("%s Loading legacy rescue zone beginning at [%s, %s, %s], ending at [%s, %s, %s].", GOVIP_PREFIX, coords[0], coords[1], coords[2], coords[3], coords[4], coords[5]);
 	}
-	
-	ClearArray(RescueZones);
-	
+		
 	if (!GetCurrentMap(buffer, sizeof(buffer)))
 	{
 		return; /* Should never happen... We should maybe even throw an error. */
@@ -435,29 +418,28 @@ ProcessConfigurationFiles()
 	
 	if(KvJumpToKey(kv, buffer)) {
 		KvGotoFirstSubKey(kv);
-		
+		decl String:endcoords[(sizeof(coords)/2)][sizeof(coords[])];
 		do {
 			KvGetString(kv, "start", buffer, sizeof(buffer));
-			new String:start[3][128];
-			ExplodeString(buffer, " ", start, 3, 128);
+			
+			ExplodeString(buffer, " ", coords, sizeof(coords), sizeof(coords[]));
 			
 			KvGetString(kv, "end", buffer, sizeof(buffer));
-			new String:end[3][128];
-			ExplodeString(buffer, " ", end, 3, 128);
+			ExplodeString(buffer, " ", endcoords, sizeof(endcoords), sizeof(endcoords[]));
 
-			PrintToServer("%s Loading rescue zone beginning at [%s, %s, %s], ending at [%s, %s, %s].", GOVIP_PREFIX, start[0], start[1], start[2], end[0], end[1], end[2]);
-						
-			new Handle:rescueZone = CreateArray();
+			PrintToServer("%s Loading rescue zone beginning at [%s, %s, %s], ending at [%s, %s, %s].", GOVIP_PREFIX, coords[0], coords[1], coords[2], endcoords[0], endcoords[1], endcoords[2]);
 			
-			PushArrayCell(rescueZone, StringToFloat(start[0]));
-			PushArrayCell(rescueZone, StringToFloat(start[1]));
-			PushArrayCell(rescueZone, StringToFloat(start[2]));
-			PushArrayCell(rescueZone, StringToFloat(end[0]));
-			PushArrayCell(rescueZone, StringToFloat(end[1]));
-			PushArrayCell(rescueZone, StringToFloat(end[2]));
+			for (new i; i < sizeof(endcoords); i++)
+			{
+				toarray[i] = StringToFloat(coords[i]);
+			}
 			
-			PushArrayCell(RescueZones, rescueZone); // for the mainloop()
-			PushArrayCell(AllRescueZones, rescueZone); // for the bots
+			for (new i = 3; i < sizeof(coords); i++)
+			{
+				toarray[i] = StringToFloat(endcoords[(i - 3)]);
+			}
+			
+			PushArrayArray(AllRescueZones, toarray, sizeof(toarray)); // for the bots
 		} while (KvGotoNextKey(kv));
 	}	
 	
@@ -499,7 +481,6 @@ stock RemoveMapObj() {
 	}
 }
 
-
 StripWeapons(client) {
 	new weaponID;
 	
@@ -511,16 +492,26 @@ StripWeapons(client) {
 	}
 }
 
-GetCenterOfTwoPoints(Float:first[3], Float:second[3], Float:center[3]) {
+GetCenterOfTwoPoints(const Float:first[], const Float:second[], Float:center[3]) {
 	center[0] = (first[0] + second[0]) / 2;
 	center[1] = (first[1] + second[1]) / 2;
 	center[2] = (first[2] + second[2]) / 2;
 }
 
+AddVectorsToLargerVector(const Float:first[3], const Float:second[3], Float:bigger[GOVIP_INTVECSIZE])
+{
+	bigger[0] = first[0];
+	bigger[1] = first[1];
+	bigger[2] = first[2];
+	bigger[3] = second[0];
+	bigger[4] = second[1];
+	bigger[5] = second[2];
+}
+
 public TouchRescueZone(trigger, client) {
 	if(!IsValidPlayer(client)) {
 		return;
-	} 
+	}
 	
 	if(CurrentState != VIPState_Playing || client != CurrentVIP || RoundComplete) {
 		return;
