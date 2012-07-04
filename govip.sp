@@ -28,6 +28,7 @@ new VIPState:CurrentState = VIPState_WaitingForMinimumPlayers;
 new Handle:CVarMinCT = INVALID_HANDLE;
 new Handle:CVarMinT = INVALID_HANDLE;
 new Handle:CVarVIPWeapon = INVALID_HANDLE;
+new Handle:CVarVIPAmmo = INVALID_HANDLE;
 new MyWeaponsOffset = 0;
 new Handle:RescueZones = INVALID_HANDLE;
 new bool:RoundComplete = false;
@@ -37,6 +38,7 @@ public OnPluginStart() {
 	CVarMinCT = CreateConVar("govip_min_ct", "2", "Minimum number of CTs to play GOVIP");
 	CVarMinT = CreateConVar("govip_min_t", "1", "Minimum number of Ts to play GOVIP");
 	CVarVIPWeapon = CreateConVar("govip_weapon", "weapon_p250", "Weapon given to VIP");
+	CVarVIPAmmo = CreateConVar("govip_ammo", "12", "Ammo given to VIP");
 	
 	CurrentState = VIPState_WaitingForMinimumPlayers;
 	
@@ -194,17 +196,17 @@ public Action:Event_PlayerSpawn(Handle:event, const String:name[], bool:dontBroa
 	
 	StripWeapons(client);
 	
-	new index = CreateEntityByName(VIPWeapon);
-	
-	new Float:PlayerLocation[3];
-	GetClientAbsOrigin(client, PlayerLocation);
+	new index = GivePlayerItem(client, VIPWeapon);
 	
 	if(index != -1) {
-		TeleportEntity(index, PlayerLocation, NULL_VECTOR, NULL_VECTOR);
-		DispatchSpawn(index);
+		SetAmmo(client, index, GetConVarInt(CVarVIPAmmo));
 	}	
 	
 	return Plugin_Continue;
+}
+
+SetAmmo(client, weapon, ammo) {
+	SetEntProp(client, Prop_Send, "m_iAmmo", 200, _, GetEntProp(weapon, Prop_Send, "m_iPrimaryAmmoType"));
 }
 
 // 04. Functions
