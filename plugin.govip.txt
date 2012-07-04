@@ -1,0 +1,18 @@
+"Games"
+    {
+            "csgo"
+            {
+                    "Signatures"
+                    {
+                            "CCSBotMoveTo"
+                            {
+                                    "library"       "server"
+									"linux"			"@_ZN6CCSBot6MoveToERK6Vector9RouteType"
+                                    "windows"       "\x55\x8B\xEC\x8B\x45\x08\xD9\x00\x8D\x91"
+                            }
+                    }
+                    "Offsets"
+                    {
+                    }
+            }
+    }
