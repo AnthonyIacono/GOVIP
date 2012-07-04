@@ -96,52 +96,22 @@ public OnClientDisconnect(client) {
 }
 
 public OnMapStart() {
-	new String:buffer[512];
-	
 	new trigger = -1;
+	decl String:buffer[512];
+	
 	while((trigger = FindEntityByClassname(trigger, "trigger_multiple")) != -1) {
-		GetEntPropString(trigger, Prop_Data, "m_iName", buffer, sizeof(buffer));
-		if(StrContains(buffer, "vip_rescue_zone", false) == 0) {
+		if(GetEntPropString(trigger, Prop_Data, "m_iName", buffer, sizeof(buffer)) \
+			&& StrContains(buffer, "vip_rescue_zone", false) == 0) {
 			SDKHook(trigger, SDKHook_Touch, TouchRescueZone);
 		}
 	}
 	
 	CreateTimer(GOVIP_MAINLOOP_INTERVAL, GOVIP_MainLoop, INVALID_HANDLE, TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);
-	
-	ClearArray(RescueZones);
-	
-	GetCurrentMap(buffer, sizeof(buffer));
-	
-	new Handle:kv = CreateKeyValues("RescueZones");
-	
-	new String:path[1024];
-	BuildPath(Path_SM, path, sizeof(path), "configs/rescue_zones.cfg");
-	
-	FileToKeyValues(kv, path);
-	
-	if(KvJumpToKey(kv, buffer)) {
-		KvGotoFirstSubKey(kv);
-		
-		do {
-			new Float:radius = KvGetFloat(kv, "radius", 200.0);
-		
-			KvGetString(kv, "coords", buffer, sizeof(buffer));
-			new String:coords[3][128];
-			ExplodeString(buffer, " ", coords, 3, 128);
+}
 
-			PrintToServer("[GO:VIP] Loading rescue zone at [%s, %s, %s] with radius of %f units.", coords[0], coords[1], coords[2], radius);
-						
-			new Handle:rescueZone = CreateArray();
-			PushArrayCell(rescueZone, radius);
-			PushArrayCell(rescueZone, StringToFloat(coords[0]));
-			PushArrayCell(rescueZone, StringToFloat(coords[1]));
-			PushArrayCell(rescueZone, StringToFloat(coords[2]));
-			
-			PushArrayCell(RescueZones, rescueZone);
-		} while (KvGotoNextKey(kv));
-	}	
-	
-	CloseHandle(kv);
+public OnConfigsExecuted()
+{
+	ProcessConfigurationFiles();
 }
 
 // 03. Events
@@ -358,6 +328,48 @@ bool:IsValidPlayer(client) {
 	}
 	
 	return true;
+}
+
+ProcessConfigurationFiles()
+{
+	decl String:buffer[512];
+	ClearArray(RescueZones);
+	
+	if (!GetCurrentMap(buffer, sizeof(buffer)))
+	{
+		return; /* Should never happen... We should maybe even throw an error. */
+	}
+	
+	new Handle:kv = CreateKeyValues("RescueZones");
+	
+	decl String:path[1024];
+	BuildPath(Path_SM, path, sizeof(path), "configs/rescue_zones.cfg");
+	
+	FileToKeyValues(kv, path);
+	
+	if(KvJumpToKey(kv, buffer)) {
+		KvGotoFirstSubKey(kv);
+		
+		do {
+			new Float:radius = KvGetFloat(kv, "radius", 200.0);
+		
+			KvGetString(kv, "coords", buffer, sizeof(buffer));
+			new String:coords[3][128];
+			ExplodeString(buffer, " ", coords, 3, 128);
+
+			PrintToServer("[GO:VIP] Loading rescue zone at [%s, %s, %s] with radius of %f units.", coords[0], coords[1], coords[2], radius);
+						
+			new Handle:rescueZone = CreateArray();
+			PushArrayCell(rescueZone, radius);
+			PushArrayCell(rescueZone, StringToFloat(coords[0]));
+			PushArrayCell(rescueZone, StringToFloat(coords[1]));
+			PushArrayCell(rescueZone, StringToFloat(coords[2]));
+			
+			PushArrayCell(RescueZones, rescueZone);
+		} while (KvGotoNextKey(kv));
+	}	
+	
+	CloseHandle(kv);
 }
 
 GetRandomPlayerOnTeam(team, ignore = 0) {
