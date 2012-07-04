@@ -123,9 +123,17 @@ public Event_RoundStart(Handle:event, const String:name[], bool:dontBroadcast) {
 	
 	new randomZoneIndex = GetRandomInt(0, GetArraySize(AllRescueZones) - 1);
 	new Handle:randomRescueZone = GetArrayCell(AllRescueZones, randomZoneIndex);
-	BotIdealRescueZone[0] = GetArrayCell(randomRescueZone, 0);
-	BotIdealRescueZone[1] = GetArrayCell(randomRescueZone, 1);
-	BotIdealRescueZone[2] = GetArrayCell(randomRescueZone, 2);
+	new Float:start[3];
+	start[0] = GetArrayCell(randomRescueZone, 0);
+	start[1] = GetArrayCell(randomRescueZone, 1);
+	start[2] = GetArrayCell(randomRescueZone, 2);
+	
+	new Float:end[3];
+	end[0] = GetArrayCell(randomRescueZone, 3);
+	end[1] = GetArrayCell(randomRescueZone, 4);
+	end[2] = GetArrayCell(randomRescueZone, 5);
+	
+	GetCenterOfTwoPoints(start, end, BotIdealRescueZone);
 	
 	for (new i = 1; i <= MaxClients; i++) {
 		if (IsClientInGame(i) && IsPlayerAlive(i)) {
@@ -278,9 +286,9 @@ public Action:GOVIP_MainLoop(Handle:timer) {
 				rescueZoneStart[2] = GetArrayCell(rescueZone, 2);
 				
 				new Float:rescueZoneEnd[3];
-				rescueZoneEnd[0] = GetArrayCell(rescueZone, 0);
-				rescueZoneEnd[1] = GetArrayCell(rescueZone, 1);
-				rescueZoneEnd[2] = GetArrayCell(rescueZone, 2);
+				rescueZoneEnd[0] = GetArrayCell(rescueZone, 3);
+				rescueZoneEnd[1] = GetArrayCell(rescueZone, 4);
+				rescueZoneEnd[2] = GetArrayCell(rescueZone, 5);
 				
 				if(IsVectorInsideMinMaxBounds(vipOrigin, rescueZoneStart, rescueZoneEnd)) { // seem good? Yeah, we should throw it into a stock probably,  yeah
 					RoundComplete = true;
@@ -301,8 +309,16 @@ public Action:GOVIP_MainLoop(Handle:timer) {
 }
 
 stock bool:IsVectorInsideMinMaxBounds(Float:vec[3], Float:min[3], Float:max[3]) {
-	return vec[0] >= min[0] && vec[1] >= min[1] && vec[2] >= min[2] &&
-		vec[0] <= max[0] && vec[1] <= max[1] && vec[2] <= max[2];
+	// min max might be ordered differently than expected, so we have to do a little ternary work here
+	new Float:smallerX = min[0] < max[0] ? min[0] : max[0];
+	new Float:smallerY = min[1] < max[1] ? min[1] : max[1];
+	new Float:smallerZ = min[2] < max[2] ? min[2] : max[2];
+	new Float:largerX = min[0] > max[0] ? min[0] : max[0];
+	new Float:largerY= min[1] > max[1] ? min[1] : max[1];
+	new Float:largerZ = min[2] > max[2] ? min[2] : max[2];
+	
+	return vec[0] >= smallerX && vec[1] >= smallerY && vec[2] >= smallerZ &&
+		vec[0] <= largerX && vec[1] <= largerY && vec[2] <= largerZ;
 }
 
 public Action:OnTakeDamage(victim, &attacker, &inflictor, &Float:damage, &damagetype)
@@ -352,7 +368,7 @@ bool:IsValidPlayer(client) {
 
 ProcessConfigurationFiles()
 {
-	decl String:buffer[512];
+	new String:buffer[512];
 	
 	new trigger = -1;
 
@@ -381,7 +397,7 @@ ProcessConfigurationFiles()
 		
 		TrimString(buffer);
 		
-		if(buffer[0] == '\0' || StrEqual(buffer, "0") || StrEqual(buffer, "false", false) || StrEqual(buffer, "off", false)) {
+		if(strlen(buffer) == 0 || StrEqual(buffer, "") || StrEqual(buffer, "0") || StrEqual(buffer, "false", false) || StrEqual(buffer, "off", false)) {
 			continue;
 		}
 		
@@ -400,7 +416,7 @@ ProcessConfigurationFiles()
 		PushArrayCell(RescueZones, rescueZone); // for the mainloop()
 		PushArrayCell(AllRescueZones, rescueZone); // for the bots
 		
-		PrintToServer("%s Loading rescue zone beginning at [%s, %s, %s], ending at [%s, %s, %s].", GOVIP_PREFIX, coords[0], coords[1], coords[2], coords[3], coords[4], coords[5]);
+		PrintToServer("%s Loading legacy rescue zone beginning at [%s, %s, %s], ending at [%s, %s, %s].", GOVIP_PREFIX, coords[0], coords[1], coords[2], coords[3], coords[4], coords[5]);
 	}
 	
 	ClearArray(RescueZones);
@@ -493,6 +509,12 @@ StripWeapons(client) {
 			AcceptEntityInput(weaponID, "Kill");
 		}
 	}
+}
+
+GetCenterOfTwoPoints(Float:first[3], Float:second[3], Float:center[3]) {
+	center[0] = (first[0] + second[0]) / 2;
+	center[1] = (first[1] + second[1]) / 2;
+	center[2] = (first[2] + second[2]) / 2;
 }
 
 public TouchRescueZone(trigger, client) {
