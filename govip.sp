@@ -42,6 +42,8 @@ public OnPluginStart() {
 	CVarVIPWeapon = CreateConVar("govip_weapon", "weapon_p250", "Weapon given to VIP");
 	CVarVIPAmmo = CreateConVar("govip_ammo", "12", "Ammo given to VIP");
 	
+	RegAdminCmd("sm_govip_readconf", OnReadConf, ADMFLAG_ROOT, "Re-reads known configuration files.");
+	
 	CurrentState = VIPState_WaitingForMinimumPlayers;
 	
 	HookEvent("round_start", Event_RoundStart, EventHookMode_PostNoCopy);
@@ -204,6 +206,16 @@ public Action:Event_PlayerSpawn(Handle:event, const String:name[], bool:dontBroa
 	}	
 	
 	return Plugin_Continue;
+}
+
+public Action:OnReadConf(client, argc) {
+	if (client && !IsClientInGame(client)){
+		return Plugin_Handled;
+	}
+	
+	ReplyToCommand(client, "[GO:VIP] Rereading the Main configuration files.");
+	ProcessConfigurationFiles();
+	return Plugin_Handled;
 }
 
 SetAmmo(client, weapon, ammo) {
