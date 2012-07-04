@@ -206,7 +206,7 @@ public Action:Event_PlayerSpawn(Handle:event, const String:name[], bool:dontBroa
 }
 
 SetAmmo(client, weapon, ammo) {
-	SetEntProp(client, Prop_Send, "m_iAmmo", 200, _, GetEntProp(weapon, Prop_Send, "m_iPrimaryAmmoType"));
+	SetEntProp(client, Prop_Send, "m_iAmmo", ammo, _, GetEntProp(weapon, Prop_Send, "m_iPrimaryAmmoType"));
 }
 
 // 04. Functions
