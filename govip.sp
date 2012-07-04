@@ -42,6 +42,8 @@ public OnPluginStart() {
 	
 	CurrentState = VIPState_WaitingForMinimumPlayers;
 	
+	CreateTimer(GOVIP_MAINLOOP_INTERVAL, GOVIP_MainLoop, INVALID_HANDLE, TIMER_REPEAT);
+
 	HookEvent("round_start", Event_RoundStart);
 	HookEvent("player_death", Event_PlayerDeath);
 	HookEvent("player_spawn", Event_PlayerSpawn);
@@ -82,8 +84,6 @@ public OnMapStart() {
 			SDKHook(trigger, SDKHook_Touch, TouchRescueZone);
 		}
 	}
-	
-	CreateTimer(GOVIP_MAINLOOP_INTERVAL, GOVIP_MainLoop, INVALID_HANDLE, TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);
 	
 	ClearArray(RescueZones);
 	
@@ -139,7 +139,7 @@ public Action:Event_RoundStart(Handle:event, const String:name[], bool:dontBroad
 				GetEdictClassname(iWeapon, szClassName, sizeof(szClassName));
 				if (StrEqual(szClassName, "weapon_c4", false)) {
 					RemovePlayerItem(i, iWeapon);
-					AcceptEntityInput(iWeapon, "Kill");
+					RemoveEdict(iWeapon);
 				}
 			}
     	}
@@ -151,7 +151,10 @@ public Action:Event_RoundStart(Handle:event, const String:name[], bool:dontBroad
 		return Plugin_Continue;
 	}
 	
-	PrintToChatAll("[GO:VIP] %N is the VIP, CTs protect the VIP from the Terrorists!", CurrentVIP);
+	new String:VIPName[128];
+	GetClientName(CurrentVIP, VIPName, sizeof(VIPName));
+	
+	PrintToChatAll("[GO:VIP] \"%s\" is the VIP, CTs protect the VIP from the Terrorists!", VIPName);
 	
 	return Plugin_Continue;
 }
@@ -320,20 +323,18 @@ GetRandomPlayerOnTeam(team, ignore = 0) {
 }
 
 stock RemoveMapObj() {
+	decl maxent,i;
 	decl String:Class[65];
-	new maxent = GetEntityCount();	/* This isn't what you think it is.
-									* This function will return the highest edict index in use on the server,
-									* not the true number of active entities.
-									*/
-								
-	for (new i=MaxClients;i<maxent;i++) {
-		if(!IsValidEdict(i) || !IsValidEntity(i)) {
-			continue;
-		}
-		
-		if(GetEdictClassname(i, Class, sizeof(Class)) \
-			&& StrContains("func_bomb_target_hostage_entity_func_hostage_rescue",Class) != -1) {
-			AcceptEntityInput(i, "Kill");
+	maxent = GetMaxEntities();
+	for (i=0;i<=maxent;i++)
+	{
+		if(IsValidEdict(i) && IsValidEntity(i))
+		{
+			GetEdictClassname(i, Class, sizeof(Class));
+			if(StrContains("func_bomb_target_hostage_entity_func_hostage_rescue",Class) != -1)
+			{
+				RemoveEdict(i);
+			}
 		}
 	}
 }
