@@ -128,7 +128,7 @@ public Event_RoundStart(Handle:event, const String:name[], bool:dontBroadcast) {
 		return;
 	}
 	
-	new randomZoneIndex = GetRandomInt(0,  - 1);
+	new randomZoneIndex = GetRandomInt(0, arraysize - 1);
 	decl Float:randomzonearray[GOVIP_INTVECSIZE];
 	GetArrayArray(AllRescueZones, randomZoneIndex, randomzonearray, sizeof(randomzonearray));
 	
