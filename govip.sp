@@ -233,6 +233,8 @@ public Action:GOVIP_MainLoop(Handle:timer) {
 		
 		if(CurrentVIP == 0) {
 			RoundComplete = true;
+			
+			CurrentVIP = GetRandomPlayerOnTeam(CS_TEAM_CT, LastVIP);
 				
 			CS_TerminateRound(5.0, CSRoundEnd_GameStart); 
 		}
