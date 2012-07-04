@@ -265,6 +265,12 @@ public Action:GOVIP_MainLoop(Handle:timer) {
 					
 				for(new pl = 1; pl < MaxClients; pl++) {
 					if(IsValidPlayer(pl) && IsFakeClient(pl)) {
+						new Float:plOrigin[3];
+						GetClientAbsOrigin(pl, plOrigin);
+						if(GetVectorDistance(idealRescueZone, plOrigin) <= 500 && pl != CurrentVIP) {
+							continue;
+						}
+						
 						CCSBotMoveTo(pl, idealRescueZone);
 					}
 				}	
