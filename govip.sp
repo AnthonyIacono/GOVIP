@@ -423,26 +423,30 @@ ProcessConfigurationFiles()
 	new trigger = -1;
 
 	ClearArray(AllRescueZones);
-	decl Float:rescueZone[2][3];
-	decl Float:BiggerVector[(sizeof(rescueZone) * sizeof(rescueZone[]))];
+	decl String:coords[GOVIP_INTVECSIZE][128];
+	decl Float:toarray[sizeof(coords)];
+	
+	decl Float:rescueOrigin[3];
+	decl Float:rescueTemp[2][3];
 	
 	while ((trigger = FindEntityByClassname(trigger, "trigger_multiple")) != -1) {
 		if (GetEntPropString(trigger, Prop_Data, "m_iName", buffer, sizeof(buffer))
 			&& StrContains(buffer, "vip_rescue_zone", false) == 0) {
+			GetEntPropVector(trigger, Prop_Send, "m_vecOrigin", rescueOrigin);
+			GetEntPropVector(trigger, Prop_Send, "m_vecMins", rescueTemp[0]);
+			GetEntPropVector(trigger, Prop_Send, "m_vecMaxs", rescueTemp[1]);
 			
-			GetEntPropVector(trigger, Prop_Send, "m_WorldMins", rescueZone[0]);
-			GetEntPropVector(trigger, Prop_Send, "m_WorldMaxs", rescueZone[1]);
+			AddVectors(rescueOrigin, rescueTemp[0], rescueTemp[0]);
+			AddVectors(rescueOrigin, rescueTemp[0], rescueTemp[1]);
 			
-			AddVectorsToLargerVector(rescueZone[0], rescueZone[1], BiggerVector);
+			AddVectorsToLargerVector(rescueTemp[0], rescueTemp[1], toarray);
 			
-			PushArrayArray(AllRescueZones, BiggerVector); /* Bot Support */
-			
+			PushArrayArray(AllRescueZones, toarray, sizeof(toarray)); /* Bot Support */
+			PrintToServer("%s Hooking New rescue zone beginning at [%f, %f, %f], ending at [%f, %f, %f]", GOVIP_PREFIX, toarray[0], toarray[1], toarray[2], toarray[3], toarray[4], toarray[5]);
 			SDKHook(trigger, SDKHook_Touch, TouchRescueZone);
 		}
 	}
 	
-	decl String:coords[GOVIP_INTVECSIZE][128];
-	decl Float:toarray[sizeof(coords)];
 	for (new x = 0; x < sizeof(CVarRescueZone); x++) {
 		GetConVarString(CVarRescueZone[x], buffer, sizeof(buffer));
 		
@@ -565,14 +569,14 @@ GetCenterOfTwoPoints(const Float:first[], const Float:second[], Float:center[3])
 	center[2] = (first[2] + second[2]) / 2;
 }
 
-AddVectorsToLargerVector(const Float:first[3], const Float:second[3], Float:bigger[GOVIP_INTVECSIZE])
+AddVectorsToLargerVector(const Float:min[3], const Float:max[3], Float:bigger[GOVIP_INTVECSIZE])
 {
-	bigger[0] = first[0];
-	bigger[1] = first[1];
-	bigger[2] = first[2];
-	bigger[3] = second[0];
-	bigger[4] = second[1];
-	bigger[5] = second[2];
+	bigger[0] = min[0] < max[0] ? min[0] : max[0];
+	bigger[1] = min[1] < max[1] ? min[1] : max[1];
+	bigger[2] = min[2] < max[2] ? min[2] : max[2];
+	bigger[3] = min[0] > max[0] ? min[0] : max[0];
+	bigger[4] = min[1] > max[1] ? min[1] : max[1];
+	bigger[5] = min[2] > max[2] ? min[2] : max[2];
 }
 
 public TouchRescueZone(trigger, client) {
