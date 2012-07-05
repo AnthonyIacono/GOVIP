@@ -129,7 +129,7 @@ public Event_RoundStart(Handle:event, const String:name[], bool:dontBroadcast) {
 	
 	SetupVIP(CurrentVIP);
 	
-	if (LastVIP && RoundWonByTeam == CS_TEAM_CT) {
+	if (LastVIP && LastVIP != CurrentVIP && RoundWonByTeam == CS_TEAM_CT) {
 		if (IsClientInGame(LastVIP) && GetClientTeam(LastVIP) == CS_TEAM_CT) {
 			SetupVIP(LastVIP);
 			
@@ -589,6 +589,7 @@ public TouchRescueZone(trigger, client) {
 	CS_TerminateRound(5.0, CSRoundEnd_CTWin);
 	
 	LastVIP = CurrentVIP;
-	
+	BotDirectionState = BOTState_NotDirected;
+	RoundWonByTeam = CS_TEAM_CT;
 	PrintToChatAll("%s %s", GOVIP_PREFIX, "The VIP has been rescued, Counter-Terrorists win.");
 }
