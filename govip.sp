@@ -421,7 +421,10 @@ ProcessConfigurationFiles()
 	decl String:path[1024];
 	BuildPath(Path_SM, path, sizeof(path), "configs/rescue_zones.cfg");
 	
-	FileToKeyValues(kv, path);
+	if (!FileToKeyValues(kv, path)) {
+		PrintToServer("%s %s", GOVIP_PREFIX, "Unable to parse file: %s", path);
+		return;
+	}
 	
 	if (KvJumpToKey(kv, buffer)) {
 		KvGotoFirstSubKey(kv);
@@ -429,10 +432,18 @@ ProcessConfigurationFiles()
 		do {
 			KvGetString(kv, "start", buffer, sizeof(buffer));
 			
-			ExplodeString(buffer, " ", coords, sizeof(coords), sizeof(coords[]));
+			if (ExplodeString(buffer, " ", coords, sizeof(coords), sizeof(coords[])) != 3)
+			{
+				PrintToServer("%s %s %s", GOVIP_PREFIX, "Illegal Input for field Start: ", buffer);
+				continue;
+			}
 			
 			KvGetString(kv, "end", buffer, sizeof(buffer));
-			ExplodeString(buffer, " ", endcoords, sizeof(endcoords), sizeof(endcoords[]));
+			if (ExplodeString(buffer, " ", endcoords, sizeof(endcoords), sizeof(endcoords[])) != 3)
+			{
+				PrintToServer("%s %s %s", GOVIP_PREFIX, "Illegal Input for field End: ", buffer);
+				continue;
+			}
 
 			PrintToServer("%s Loading rescue zone beginning at [%s, %s, %s], ending at [%s, %s, %s].", GOVIP_PREFIX, coords[0], coords[1], coords[2], endcoords[0], endcoords[1], endcoords[2]);
 			
