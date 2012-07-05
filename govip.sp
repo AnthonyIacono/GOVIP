@@ -116,6 +116,8 @@ public Event_RoundStart(Handle:event, const String:name[], bool:dontBroadcast) {
 	
 	CurrentVIP = GetRandomPlayerOnTeam(CS_TEAM_CT, LastVIP);
 	
+	SetupVIP(CurrentVIP);
+	
 	if (CurrentState != VIPState_Playing) {
 		return;
 	}
@@ -204,16 +206,7 @@ public Action:Event_PlayerSpawn(Handle:event, const String:name[], bool:dontBroa
 		return Plugin_Continue;
 	}
 	
-	new String:VIPWeapon[256];
-	GetConVarString(CVarVIPWeapon, VIPWeapon, sizeof(VIPWeapon));
-	
-	StripWeapons(client);
-	GivePlayerItem(client, "weapon_knife");
-	new index = GivePlayerItem(client, VIPWeapon);
-	
-	if (index != -1) {
-		SetAmmo(client, index, GetConVarInt(CVarVIPAmmo));
-	}	
+
 	
 	return Plugin_Continue;
 }
@@ -226,6 +219,20 @@ public Action:OnReadConf(client, argc) {
 	ReplyToCommand(client, "%s %s", GOVIP_PREFIX, "Rereading the Main configuration files.");
 	ProcessConfigurationFiles();
 	return Plugin_Handled;
+}
+
+SetupVIP(client)
+{
+	decl String:VIPWeapon[64];
+	GetConVarString(CVarVIPWeapon, VIPWeapon, sizeof(VIPWeapon));
+	
+	StripWeapons(client);
+	GivePlayerItem(client, "weapon_knife");
+	new index = GivePlayerItem(client, VIPWeapon);
+	
+	if (index != -1) {
+		SetAmmo(client, index, GetConVarInt(CVarVIPAmmo));
+	}
 }
 
 SetAmmo(client, weapon, ammo) {
