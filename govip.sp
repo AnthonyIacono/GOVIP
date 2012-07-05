@@ -338,6 +338,20 @@ stock bool:IsVectorInsideMinMaxBounds(Float:vec[3], Float:min[], Float:max[]) {
 		vec[0] <= largerX && vec[1] <= largerY && vec[2] <= largerZ;
 }
 
+public Action:CS_OnBuyCommand(client, const String:weapon[])
+{
+	if (client != CurrentVIP || !IsClientInGame(client)) {
+		return Plugin_Continue;
+	}
+	
+	if (IsFakeClient(client)) {
+		return Plugin_Handled;
+	}
+	
+	PrintToChat(client, "%s %s", GOVIP_PREFIX, "The VIP is unable to buy weapons.");
+	return Plugin_Handled;
+}
+
 public Action:OnTakeDamage(victim, &attacker, &inflictor, &Float:damage, &damagetype)
 {
 	if (!RoundComplete || victim != CurrentVIP || victim == attacker || victim == inflictor) {
