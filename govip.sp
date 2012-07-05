@@ -30,36 +30,36 @@ enum BOTState {
 	BOTState_Directed
 };
 
-new CurrentVIP = 0;
-new LastVIP = 0;
-new VIPState:CurrentState = VIPState_WaitingForMinimumPlayers;
-new BOTState:BotDirectionState = BOTState_NotDirected;
-new Handle:CVarMinCT = INVALID_HANDLE;
-new Handle:CVarMinT = INVALID_HANDLE;
-new Handle:CVarVIPWeapon = INVALID_HANDLE;
-new Handle:CVarVIPWeaponSuccess = INVALID_HANDLE;
-new Handle:CVarVIPAmmo = INVALID_HANDLE;
-new Handle:CVarRescueZone[2];
+new g_iCurrentVIP = 0;
+new g_iLastVIP = 0;
+new VIPState:g_iCurrentState = VIPState_WaitingForMinimumPlayers;
+new BOTState:g_iBotDirectionState = BOTState_NotDirected;
+new Handle:g_hCVarMinCT = INVALID_HANDLE;
+new Handle:g_hCVarMinT = INVALID_HANDLE;
+new Handle:g_hCVarVIPWeapon = INVALID_HANDLE;
+new Handle:g_hCVarVIPWeaponSuccess = INVALID_HANDLE;
+new Handle:g_hCVarVIPAmmo = INVALID_HANDLE;
+new Handle:g_hCVarRescueZone[2];
 
-new Handle:AllRescueZones = INVALID_HANDLE; // Kinda ugly but this contains map entities too.
-new bool:RoundComplete = false;
-new RoundWonByTeam = 0;
-new Handle:hBotMoveTo = INVALID_HANDLE;
-new Float:BotIdealRescueZone[3];
+new Handle:g_hAllRescueZones = INVALID_HANDLE; // Kinda ugly but this contains map entities too.
+new bool:g_bRoundComplete = false;
+new g_iRoundWonByTeam = 0;
+new Handle:g_hBotMoveTo = INVALID_HANDLE;
+new Float:g_fBotIdealRescueZone[3];
 
 // 02. Forwards
 public OnPluginStart() {
-	CVarMinCT = CreateConVar("govip_min_ct", "2", "Minimum number of CTs to play GOVIP");
-	CVarMinT = CreateConVar("govip_min_t", "1", "Minimum number of Ts to play GOVIP");
-	CVarVIPWeapon = CreateConVar("govip_weapon", "weapon_p250", "Weapon given to VIP");
-	CVarVIPWeaponSuccess = CreateConVar("govip_weapon_success", "weapon_ak47", "Weapon given to VIP on Escaping/Living.");
-	CVarVIPAmmo = CreateConVar("govip_ammo", "12", "Ammo given to VIP");
-	CVarRescueZone[0] = CreateConVar("vip_escapezone1", "", "Legacy position for the first rescue zone");
-	CVarRescueZone[1] = CreateConVar("vip_escapezone2", "", "Legacy position for the first rescue zone");
+	g_hCVarMinCT = CreateConVar("govip_min_ct", "2", "Minimum number of CTs to play GOVIP");
+	g_hCVarMinT = CreateConVar("govip_min_t", "1", "Minimum number of Ts to play GOVIP");
+	g_hCVarVIPWeapon = CreateConVar("govip_weapon", "weapon_p250", "Weapon given to VIP");
+	g_hCVarVIPWeaponSuccess = CreateConVar("govip_weapon_success", "weapon_ak47", "Weapon given to VIP on Escaping/Living.");
+	g_hCVarVIPAmmo = CreateConVar("govip_ammo", "12", "Ammo given to VIP");
+	g_hCVarRescueZone[0] = CreateConVar("vip_escapezone1", "", "Legacy position for the first rescue zone");
+	g_hCVarRescueZone[1] = CreateConVar("vip_escapezone2", "", "Legacy position for the first rescue zone");
 	
 	RegAdminCmd("sm_govip_readconf", OnReadConf, ADMFLAG_ROOT, "Re-reads known configuration files.");
 	
-	CurrentState = VIPState_WaitingForMinimumPlayers;
+	g_iCurrentState = VIPState_WaitingForMinimumPlayers;
 	
 	HookEvent("round_start", Event_RoundStart, EventHookMode_PostNoCopy);
 	HookEvent("round_freeze_end", Event_RoundFreezeEnd, EventHookMode_PostNoCopy);
@@ -67,16 +67,16 @@ public OnPluginStart() {
 	HookEvent("player_death", Event_PlayerDeath);
 	//HookEvent("player_spawn", Event_PlayerSpawn);
 	
-	AllRescueZones = CreateArray(GOVIP_INTVECSIZE);
+	g_hAllRescueZones = CreateArray(GOVIP_INTVECSIZE);
 	
 	new Handle:hGameConf = LoadGameConfigFile("plugin.govip");
 	StartPrepSDKCall(SDKCall_Player);
 	PrepSDKCall_SetFromConf(hGameConf, SDKConf_Signature, "CCSBotMoveTo");
 	PrepSDKCall_AddParameter(SDKType_Vector, SDKPass_ByRef);
 	PrepSDKCall_AddParameter(SDKType_PlainOldData, SDKPass_Plain);
-	hBotMoveTo = EndPrepSDKCall();
+	g_hBotMoveTo = EndPrepSDKCall();
 	
-	RoundComplete = false;
+	g_bRoundComplete = false;
 	
 	for (new i = 1; i <= MaxClients; i++) {
 		if (!IsClientInGame(i)) {
@@ -88,7 +88,7 @@ public OnPluginStart() {
 }
 
 CCSBotMoveTo(bot, Float:origin[3]) {
-	SDKCall(hBotMoveTo, bot, origin, 0);
+	SDKCall(g_hBotMoveTo, bot, origin, 0);
 }
 
 public OnClientPutInServer(client) {
@@ -98,16 +98,16 @@ public OnClientPutInServer(client) {
 }
 
 public OnClientDisconnect(client) {
-	if (CurrentState != VIPState_Playing || client != CurrentVIP || RoundComplete) {
+	if (g_iCurrentState != VIPState_Playing || client != g_iCurrentVIP || g_bRoundComplete) {
 		return;
 	}
 	
-	RoundComplete = true;
+	g_bRoundComplete = true;
 	
-	LastVIP = CurrentVIP;
+	g_iLastVIP = g_iCurrentVIP;
 	
 	PrintToChatAll("%s %s", GOVIP_PREFIX, "The VIP has left, round ends in a draw.");
-	BotDirectionState = BOTState_NotDirected;
+	g_iBotDirectionState = BOTState_NotDirected;
 	
 	CS_TerminateRound(5.0, CSRoundEnd_Draw);
 }
@@ -123,31 +123,31 @@ public OnConfigsExecuted()
 
 // 03. Events
 public Event_RoundStart(Handle:event, const String:name[], bool:dontBroadcast) {
-	RoundComplete = false;
+	g_bRoundComplete = false;
 	
-	CurrentVIP = GetRandomPlayerOnTeam(CS_TEAM_CT, LastVIP);
+	g_iCurrentVIP = GetRandomPlayerOnTeam(CS_TEAM_CT, g_iLastVIP);
 	
-	SetupVIP(CurrentVIP);
+	SetupVIP(g_iCurrentVIP);
 	
-	if (LastVIP && LastVIP != CurrentVIP && RoundWonByTeam == CS_TEAM_CT) {
-		if (IsClientInGame(LastVIP) && GetClientTeam(LastVIP) == CS_TEAM_CT) {
-			SetupVIP(LastVIP);
+	if (g_iLastVIP && g_iLastVIP != g_iCurrentVIP && g_iRoundWonByTeam == CS_TEAM_CT) {
+		if (IsClientInGame(g_iLastVIP) && GetClientTeam(g_iLastVIP) == CS_TEAM_CT) {
+			SetupVIP(g_iLastVIP);
 			
 			decl String:weaponName[96];
-			GetConVarString(CVarVIPWeaponSuccess, weaponName, sizeof(weaponName));
+			GetConVarString(g_hCVarVIPWeaponSuccess, weaponName, sizeof(weaponName));
 			TrimString(weaponName);
 			
 			if (weaponName[0] != '\0') {
-				GivePlayerItem(LastVIP, weaponName);
+				GivePlayerItem(g_iLastVIP, weaponName);
 			}
 		}
 	}
 	
-	if (CurrentState != VIPState_Playing) {
+	if (g_iCurrentState != VIPState_Playing) {
 		return;
 	}
 	
-	new arraysize = GetArraySize(AllRescueZones);
+	new arraysize = GetArraySize(g_hAllRescueZones);
 	
 	if (!arraysize) {
 		PrintToChatAll("%s %s", GOVIP_PREFIX, "No rescue Zones Found :(");
@@ -156,9 +156,9 @@ public Event_RoundStart(Handle:event, const String:name[], bool:dontBroadcast) {
 	
 	new randomZoneIndex = GetRandomInt(0, arraysize - 1);
 	decl Float:randomzonearray[GOVIP_INTVECSIZE];
-	GetArrayArray(AllRescueZones, randomZoneIndex, randomzonearray, sizeof(randomzonearray));
+	GetArrayArray(g_hAllRescueZones, randomZoneIndex, randomzonearray, sizeof(randomzonearray));
 	
-	GetCenterOfTwoPoints(randomzonearray, randomzonearray[3], BotIdealRescueZone);
+	GetCenterOfTwoPoints(randomzonearray, randomzonearray[3], g_fBotIdealRescueZone);
 	
 	for (new i = 1; i <= MaxClients; i++) {
 		if (!IsClientInGame(i) || !IsPlayerAlive(i)) {
@@ -179,65 +179,65 @@ public Event_RoundStart(Handle:event, const String:name[], bool:dontBroadcast) {
 	
 	RemoveMapObj();
 	
-	if (CurrentVIP == 0 || !IsValidPlayer(CurrentVIP)) {
+	if (g_iCurrentVIP == 0 || !IsValidPlayer(g_iCurrentVIP)) {
 		return;
 	}
 	
-	PrintToChatAll("%s %N %s", GOVIP_PREFIX, CurrentVIP, "is the VIP, CTs protect the VIP from the Terrorists!");
+	PrintToChatAll("%s %N %s", GOVIP_PREFIX, g_iCurrentVIP, "is the VIP, CTs protect the VIP from the Terrorists!");
 	
 	return;
 }
 
 public Event_RoundFreezeEnd(Handle:event, const String:name[], bool:dontBroadcast) {
-	BotDirectionState = BOTState_Directed;
+	g_iBotDirectionState = BOTState_Directed;
 }
 
 public Event_RoundEnd(Handle:event, const String:name[], bool:dontBroadcast) {
-	if (CurrentState != VIPState_Playing) {
+	if (g_iCurrentState != VIPState_Playing) {
 		return;
 	}
 	
-	LastVIP = CurrentVIP;
-	RoundWonByTeam = GetEventInt(event, "winner");
+	g_iLastVIP = g_iCurrentVIP;
+	g_iRoundWonByTeam = GetEventInt(event, "winner");
 	
-	RoundComplete = true; /* The round is 'ogre'. No point in continuing to track stats. */
-	BotDirectionState = BOTState_NotDirected;
+	g_bRoundComplete = true; /* The round is 'ogre'. No point in continuing to track stats. */
+	g_iBotDirectionState = BOTState_NotDirected;
 }
 
 public Action:Event_PlayerDeath(Handle:event, const String:name[], bool:dontBroadcast) {
-	if (CurrentState != VIPState_Playing) {
+	if (g_iCurrentState != VIPState_Playing) {
 		return Plugin_Continue;
 	}
 	
 	new userid = GetEventInt(event, "userid");
 	new client = GetClientOfUserId(userid);
 	
-	if (client != CurrentVIP || RoundComplete) {
+	if (client != g_iCurrentVIP || g_bRoundComplete) {
 		return Plugin_Continue;
 	}
 	
-	RoundComplete = true;
+	g_bRoundComplete = true;
 	
 	CS_TerminateRound(5.0, CSRoundEnd_TerroristWin);
 	
 	PrintToChatAll("%s %s", GOVIP_PREFIX, "The VIP has died, Terrorists win!");
 	
-	LastVIP = CurrentVIP;
-	RoundWonByTeam = CS_TEAM_T;
+	g_iLastVIP = g_iCurrentVIP;
+	g_iRoundWonByTeam = CS_TEAM_T;
 	
-	BotDirectionState = BOTState_NotDirected;
+	g_iBotDirectionState = BOTState_NotDirected;
 	return Plugin_Continue;
 }
 
 public Action:Event_PlayerSpawn(Handle:event, const String:name[], bool:dontBroadcast) {
-	if (CurrentState != VIPState_Playing) {
+	if (g_iCurrentState != VIPState_Playing) {
 		return Plugin_Continue;
 	}
 	
 	new userid = GetEventInt(event, "userid");
 	new client = GetClientOfUserId(userid);
 	
-	if (client != CurrentVIP) {
+	if (client != g_iCurrentVIP) {
 		return Plugin_Continue;
 	}
 	
@@ -259,14 +259,14 @@ public Action:OnReadConf(client, argc) {
 SetupVIP(client)
 {
 	decl String:VIPWeapon[64];
-	GetConVarString(CVarVIPWeapon, VIPWeapon, sizeof(VIPWeapon));
+	GetConVarString(g_hCVarVIPWeapon, VIPWeapon, sizeof(VIPWeapon));
 	
 	StripWeapons(client);
 	GivePlayerItem(client, "weapon_knife");
 	new index = GivePlayerItem(client, VIPWeapon);
 	
 	if (index != -1) {
-		SetAmmo(client, index, GetConVarInt(CVarVIPAmmo));
+		SetAmmo(client, index, GetConVarInt(g_hCVarVIPAmmo));
 	}
 }
 
@@ -279,32 +279,32 @@ public Action:GOVIP_MainLoop(Handle:timer) {
 	new CTCount = GetTeamClientCount(CS_TEAM_CT);
 	new TCount = GetTeamClientCount(CS_TEAM_T);
 	
-	if (CurrentState == VIPState_WaitingForMinimumPlayers) {
-		if (CTCount >= GetConVarInt(CVarMinCT) && TCount >= GetConVarInt(CVarMinT)) {
-			CurrentState = VIPState_Playing;
+	if (g_iCurrentState == VIPState_WaitingForMinimumPlayers) {
+		if (CTCount >= GetConVarInt(g_hCVarMinCT) && TCount >= GetConVarInt(g_hCVarMinT)) {
+			g_iCurrentState = VIPState_Playing;
 			PrintToChatAll("%s %s", GOVIP_PREFIX, "Starting the game!");
 			return Plugin_Continue;
 		}
 	}
-	else if (CurrentState == VIPState_Playing) {
-		if (TCount < GetConVarInt(CVarMinT) || CTCount < GetConVarInt(CVarMinCT)) {
-			CurrentState = VIPState_WaitingForMinimumPlayers;
+	else if (g_iCurrentState == VIPState_Playing) {
+		if (TCount < GetConVarInt(g_hCVarMinT) || CTCount < GetConVarInt(g_hCVarMinCT)) {
+			g_iCurrentState = VIPState_WaitingForMinimumPlayers;
 			PrintToChatAll("%s %s", GOVIP_PREFIX, "Game paused, waiting for more players.");
 			return Plugin_Continue;
 		}
 		
-		if (CurrentVIP == 0) {
-			RoundComplete = true;
+		if (g_iCurrentVIP == 0) {
+			g_bRoundComplete = true;
 			
-			CurrentVIP = GetRandomPlayerOnTeam(CS_TEAM_CT, LastVIP);
+			g_iCurrentVIP = GetRandomPlayerOnTeam(CS_TEAM_CT, g_iLastVIP);
 				
 			CS_TerminateRound(5.0, CSRoundEnd_GameStart); 
 		}
-		else if (!RoundComplete && IsValidPlayer(CurrentVIP)) {
+		else if (!g_bRoundComplete && IsValidPlayer(g_iCurrentVIP)) {
 			new Float:vipOrigin[3];
-			GetClientAbsOrigin(CurrentVIP, vipOrigin);
+			GetClientAbsOrigin(g_iCurrentVIP, vipOrigin);
 			
-			if (BotDirectionState == BOTState_Directed && GetArraySize(AllRescueZones) > 0) {
+			if (g_iBotDirectionState == BOTState_Directed && GetArraySize(g_hAllRescueZones) > 0) {
 				decl Float:plOrigin[3];
 				for (new pl = 1; pl < MaxClients; pl++) {
 					if (!IsValidPlayer(pl) || !IsFakeClient(pl)) {
@@ -312,24 +312,24 @@ public Action:GOVIP_MainLoop(Handle:timer) {
 					}
 					
 					GetClientAbsOrigin(pl, plOrigin);
-					if (pl != CurrentVIP && GetVectorDistance(BotIdealRescueZone, plOrigin) <= 500) {
+					if (pl != g_iCurrentVIP && GetVectorDistance(g_fBotIdealRescueZone, plOrigin) <= 500) {
 						continue;
 					}
 					
-					CCSBotMoveTo(pl, BotIdealRescueZone);
+					CCSBotMoveTo(pl, g_fBotIdealRescueZone);
 				}	
 			}
 			
-			new rescueZoneCount = GetArraySize(AllRescueZones);
+			new rescueZoneCount = GetArraySize(g_hAllRescueZones);
 			decl Float:rescueZone[GOVIP_INTVECSIZE];
 			
 			for (new rescueZoneIndex = 0; rescueZoneIndex < rescueZoneCount; rescueZoneIndex++) {
-				GetArrayArray(AllRescueZones, rescueZoneIndex, rescueZone, sizeof(rescueZone));
+				GetArrayArray(g_hAllRescueZones, rescueZoneIndex, rescueZone, sizeof(rescueZone));
 				
 				if (IsVectorInsideMinMaxBounds(vipOrigin, rescueZone, rescueZone[(sizeof(rescueZone)/2)])) { // seem good? Yeah, we should throw it into a stock probably,  yeah
-					RoundComplete = true;
+					g_bRoundComplete = true;
 					
-					LastVIP = CurrentVIP;
+					g_iLastVIP = g_iCurrentVIP;
 					
 					CS_TerminateRound(5.0, CSRoundEnd_CTWin);
 					
@@ -359,7 +359,7 @@ stock bool:IsVectorInsideMinMaxBounds(Float:vec[3], Float:min[], Float:max[]) {
 
 public Action:CS_OnBuyCommand(client, const String:weapon[])
 {
-	if (client != CurrentVIP || !IsClientInGame(client)) {
+	if (client != g_iCurrentVIP || !IsClientInGame(client)) {
 		return Plugin_Continue;
 	}
 	
@@ -373,7 +373,7 @@ public Action:CS_OnBuyCommand(client, const String:weapon[])
 
 public Action:OnTakeDamage(victim, &attacker, &inflictor, &Float:damage, &damagetype)
 {
-	if (!RoundComplete || victim != CurrentVIP || victim == attacker || victim == inflictor) {
+	if (!g_bRoundComplete || victim != g_iCurrentVIP || victim == attacker || victim == inflictor) {
 		return Plugin_Continue; /* We don't care! */
 	}
 	
@@ -381,7 +381,7 @@ public Action:OnTakeDamage(victim, &attacker, &inflictor, &Float:damage, &damage
 }
 
 public Action:OnWeaponCanUse(client, weapon) {
-	if (CurrentState != VIPState_Playing || client != CurrentVIP) {
+	if (g_iCurrentState != VIPState_Playing || client != g_iCurrentVIP) {
 		return Plugin_Continue;
 	}
 	
@@ -390,7 +390,7 @@ public Action:OnWeaponCanUse(client, weapon) {
 	GetEntityClassname(weapon, entityClassName, sizeof(entityClassName));
 	
 	new String:VIPWeapon[256];
-	GetConVarString(CVarVIPWeapon, VIPWeapon, sizeof(VIPWeapon));
+	GetConVarString(g_hCVarVIPWeapon, VIPWeapon, sizeof(VIPWeapon));
 	
 	if (StrEqual(entityClassName, "weapon_knife", false) || StrEqual(entityClassName, VIPWeapon, false)) {
 		return Plugin_Continue;
@@ -400,7 +400,7 @@ public Action:OnWeaponCanUse(client, weapon) {
 }
 
 public Action:Command_JoinTeam(client, const String:command[], argc) {
-	if (CurrentState != VIPState_Playing || client != CurrentVIP) {
+	if (g_iCurrentState != VIPState_Playing || client != g_iCurrentVIP) {
 		return Plugin_Continue;
 	}
 	
@@ -422,7 +422,7 @@ ProcessConfigurationFiles()
 	
 	new trigger = -1;
 
-	ClearArray(AllRescueZones);
+	ClearArray(g_hAllRescueZones);
 	decl String:coords[GOVIP_INTVECSIZE][128];
 	decl Float:toarray[sizeof(coords)];
 	
@@ -436,19 +436,21 @@ ProcessConfigurationFiles()
 			GetEntPropVector(trigger, Prop_Send, "m_vecMins", rescueTemp[0]);
 			GetEntPropVector(trigger, Prop_Send, "m_vecMaxs", rescueTemp[1]);
 			
+			PrintToServer("Mins: %f %f %f Maxs: %f %f %f", rescueTemp[0][0], rescueTemp[0][1], rescueTemp[0][2], rescueTemp[1][0], rescueTemp[1][1], rescueTemp[1][2]);
+			
 			AddVectors(rescueOrigin, rescueTemp[0], rescueTemp[0]);
 			AddVectors(rescueOrigin, rescueTemp[0], rescueTemp[1]);
 			
 			AddVectorsToLargerVector(rescueTemp[0], rescueTemp[1], toarray);
 			
-			PushArrayArray(AllRescueZones, toarray, sizeof(toarray)); /* Bot Support */
+			PushArrayArray(g_hAllRescueZones, toarray, sizeof(toarray)); /* Bot Support */
 			PrintToServer("%s Hooking New rescue zone beginning at [%f, %f, %f], ending at [%f, %f, %f]", GOVIP_PREFIX, toarray[0], toarray[1], toarray[2], toarray[3], toarray[4], toarray[5]);
 			SDKHook(trigger, SDKHook_Touch, TouchRescueZone);
 		}
 	}
 	
-	for (new x = 0; x < sizeof(CVarRescueZone); x++) {
-		GetConVarString(CVarRescueZone[x], buffer, sizeof(buffer));
+	for (new x = 0; x < sizeof(g_hCVarRescueZone); x++) {
+		GetConVarString(g_hCVarRescueZone[x], buffer, sizeof(buffer));
 		
 		TrimString(buffer);
 		
@@ -462,7 +464,7 @@ ProcessConfigurationFiles()
 			toarray[i] = StringToFloat(coords[i]);
 		}
 		
-		PushArrayArray(AllRescueZones, toarray, sizeof(toarray));
+		PushArrayArray(g_hAllRescueZones, toarray, sizeof(toarray));
 		
 		PrintToServer("%s Loading legacy rescue zone beginning at [%s, %s, %s], ending at [%s, %s, %s].", GOVIP_PREFIX, coords[0], coords[1], coords[2], coords[3], coords[4], coords[5]);
 	}
@@ -510,7 +512,7 @@ ProcessConfigurationFiles()
 				toarray[i] = StringToFloat(endcoords[(i - 3)]);
 			}
 			
-			PushArrayArray(AllRescueZones, toarray, sizeof(toarray)); // for the bots
+			PushArrayArray(g_hAllRescueZones, toarray, sizeof(toarray)); // for the bots
 		} while (KvGotoNextKey(kv));
 	}	
 	
@@ -584,16 +586,16 @@ public TouchRescueZone(trigger, client) {
 		return;
 	}
 	
-	if (CurrentState != VIPState_Playing || client != CurrentVIP || RoundComplete) {
+	if (g_iCurrentState != VIPState_Playing || client != g_iCurrentVIP || g_bRoundComplete) {
 		return;
 	}
 	
-	RoundComplete = true;
+	g_bRoundComplete = true;
 	
 	CS_TerminateRound(5.0, CSRoundEnd_CTWin);
 	
-	LastVIP = CurrentVIP;
-	BotDirectionState = BOTState_NotDirected;
-	RoundWonByTeam = CS_TEAM_CT;
+	g_iLastVIP = g_iCurrentVIP;
+	g_iBotDirectionState = BOTState_NotDirected;
+	g_iRoundWonByTeam = CS_TEAM_CT;
 	PrintToChatAll("%s %s", GOVIP_PREFIX, "The VIP has been rescued, Counter-Terrorists win.");
 }
