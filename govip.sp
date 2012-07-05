@@ -25,9 +25,15 @@ enum VIPState {
 	VIPState_Playing
 };
 
+enum BOTState {
+	BOTState_NotDirected = 0,
+	BOTState_Directed
+};
+
 new CurrentVIP = 0;
 new LastVIP = 0;
 new VIPState:CurrentState = VIPState_WaitingForMinimumPlayers;
+new BOTState:BotDirectionState = BOTState_NotDirected;
 new Handle:CVarMinCT = INVALID_HANDLE;
 new Handle:CVarMinT = INVALID_HANDLE;
 new Handle:CVarVIPWeapon = INVALID_HANDLE;
@@ -53,6 +59,7 @@ public OnPluginStart() {
 	CurrentState = VIPState_WaitingForMinimumPlayers;
 	
 	HookEvent("round_start", Event_RoundStart, EventHookMode_PostNoCopy);
+	HookEvent("round_freeze_end", Event_RoundFreezeEnd, EventHookMode_PostNoCopy);
 	HookEvent("round_end", Event_RoundEnd, EventHookMode_PostNoCopy);
 	HookEvent("player_death", Event_PlayerDeath);
 	HookEvent("player_spawn", Event_PlayerSpawn);
@@ -97,6 +104,7 @@ public OnClientDisconnect(client) {
 	LastVIP = CurrentVIP;
 	
 	PrintToChatAll("%s %s", GOVIP_PREFIX, "The VIP has left, round ends in a draw.");
+	BotDirectionState = BOTState_NotDirected;
 	
 	CS_TerminateRound(5.0, CSRoundEnd_Draw);
 }
@@ -163,6 +171,10 @@ public Event_RoundStart(Handle:event, const String:name[], bool:dontBroadcast) {
 	return;
 }
 
+public Event_RoundFreezeEnd(Handle:event, const String:name[], bool:dontBroadcast) {
+	BotDirectionState = BOTState_Directed;
+}
+
 public Event_RoundEnd(Handle:event, const String:name[], bool:dontBroadcast) {
 	if (CurrentState != VIPState_Playing) {
 		return;
@@ -171,6 +183,7 @@ public Event_RoundEnd(Handle:event, const String:name[], bool:dontBroadcast) {
 	LastVIP = CurrentVIP;
 	
 	RoundComplete = true; /* The round is 'ogre'. No point in continuing to track stats. */
+	BotDirectionState = BOTState_NotDirected;
 }
 
 public Action:Event_PlayerDeath(Handle:event, const String:name[], bool:dontBroadcast) {
@@ -193,6 +206,7 @@ public Action:Event_PlayerDeath(Handle:event, const String:name[], bool:dontBroa
 	
 	LastVIP = CurrentVIP;
 	
+	BotDirectionState = BOTState_NotDirected;
 	return Plugin_Continue;
 }
 
@@ -271,17 +285,19 @@ public Action:GOVIP_MainLoop(Handle:timer) {
 			new Float:vipOrigin[3];
 			GetClientAbsOrigin(CurrentVIP, vipOrigin);
 			
-			if (GetArraySize(AllRescueZones) > 0) {				
+			if (BotDirectionState == BOTState_Directed && GetArraySize(AllRescueZones) > 0) {
+				decl Float:plOrigin[3];
 				for (new pl = 1; pl < MaxClients; pl++) {
-					if (IsValidPlayer(pl) && IsFakeClient(pl)) {
-						new Float:plOrigin[3];
-						GetClientAbsOrigin(pl, plOrigin);
-						if (GetVectorDistance(BotIdealRescueZone, plOrigin) <= 500 && pl != CurrentVIP) {
-							continue;
-						}
-						
-						CCSBotMoveTo(pl, BotIdealRescueZone);
+					if (!IsValidPlayer(pl) || !IsFakeClient(pl)) {
+						continue;
 					}
+					
+					GetClientAbsOrigin(pl, plOrigin);
+					if (pl != CurrentVIP && GetVectorDistance(BotIdealRescueZone, plOrigin) <= 500) {
+						continue;
+					}
+					
+					CCSBotMoveTo(pl, BotIdealRescueZone);
 				}	
 			}
 			
