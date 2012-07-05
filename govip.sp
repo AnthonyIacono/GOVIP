@@ -37,11 +37,13 @@ new BOTState:BotDirectionState = BOTState_NotDirected;
 new Handle:CVarMinCT = INVALID_HANDLE;
 new Handle:CVarMinT = INVALID_HANDLE;
 new Handle:CVarVIPWeapon = INVALID_HANDLE;
+new Handle:CVarVIPWeaponSuccess = INVALID_HANDLE;
 new Handle:CVarVIPAmmo = INVALID_HANDLE;
 new Handle:CVarRescueZone[2];
 
 new Handle:AllRescueZones = INVALID_HANDLE; // Kinda ugly but this contains map entities too.
 new bool:RoundComplete = false;
+new RoundWonByTeam = 0;
 new Handle:hBotMoveTo = INVALID_HANDLE;
 new Float:BotIdealRescueZone[3];
 
@@ -50,6 +52,7 @@ public OnPluginStart() {
 	CVarMinCT = CreateConVar("govip_min_ct", "2", "Minimum number of CTs to play GOVIP");
 	CVarMinT = CreateConVar("govip_min_t", "1", "Minimum number of Ts to play GOVIP");
 	CVarVIPWeapon = CreateConVar("govip_weapon", "weapon_p250", "Weapon given to VIP");
+	CVarVIPWeaponSuccess = CreateConVar("govip_weapon_success", "weapon_ak47", "Weapon given to VIP on Escaping/Living.");
 	CVarVIPAmmo = CreateConVar("govip_ammo", "12", "Ammo given to VIP");
 	CVarRescueZone[0] = CreateConVar("vip_escapezone1", "", "Legacy position for the first rescue zone");
 	CVarRescueZone[1] = CreateConVar("vip_escapezone2", "", "Legacy position for the first rescue zone");
@@ -60,9 +63,9 @@ public OnPluginStart() {
 	
 	HookEvent("round_start", Event_RoundStart, EventHookMode_PostNoCopy);
 	HookEvent("round_freeze_end", Event_RoundFreezeEnd, EventHookMode_PostNoCopy);
-	HookEvent("round_end", Event_RoundEnd, EventHookMode_PostNoCopy);
+	HookEvent("round_end", Event_RoundEnd, EventHookMode_Post);
 	HookEvent("player_death", Event_PlayerDeath);
-	HookEvent("player_spawn", Event_PlayerSpawn);
+	//HookEvent("player_spawn", Event_PlayerSpawn);
 	
 	AllRescueZones = CreateArray(GOVIP_INTVECSIZE);
 	
@@ -126,6 +129,20 @@ public Event_RoundStart(Handle:event, const String:name[], bool:dontBroadcast) {
 	
 	SetupVIP(CurrentVIP);
 	
+	if (LastVIP && RoundWonByTeam == CS_TEAM_CT) {
+		if (IsClientInGame(LastVIP) && GetClientTeam(LastVIP) == CS_TEAM_CT) {
+			SetupVIP(LastVIP);
+			
+			decl String:weaponName[96];
+			GetConVarString(CVarVIPWeaponSuccess, weaponName, sizeof(weaponName));
+			TrimString(weaponName);
+			
+			if (weaponName[0] != '\0') {
+				GivePlayerItem(LastVIP, weaponName);
+			}
+		}
+	}
+	
 	if (CurrentState != VIPState_Playing) {
 		return;
 	}
@@ -181,6 +198,7 @@ public Event_RoundEnd(Handle:event, const String:name[], bool:dontBroadcast) {
 	}
 	
 	LastVIP = CurrentVIP;
+	RoundWonByTeam = GetEventInt(event, "winner");
 	
 	RoundComplete = true; /* The round is 'ogre'. No point in continuing to track stats. */
 	BotDirectionState = BOTState_NotDirected;
@@ -205,6 +223,7 @@ public Action:Event_PlayerDeath(Handle:event, const String:name[], bool:dontBroa
 	PrintToChatAll("%s %s", GOVIP_PREFIX, "The VIP has died, Terrorists win!");
 	
 	LastVIP = CurrentVIP;
+	RoundWonByTeam = CS_TEAM_T;
 	
 	BotDirectionState = BOTState_NotDirected;
 	return Plugin_Continue;
