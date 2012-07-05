@@ -306,7 +306,7 @@ public Action:GOVIP_MainLoop(Handle:timer) {
 			
 			if (g_iBotDirectionState == BOTState_Directed && GetArraySize(g_hAllRescueZones) > 0) {
 				decl Float:plOrigin[3];
-				for (new pl = 1; pl < MaxClients; pl++) {
+				for (new pl = 1; pl <= MaxClients; pl++) {
 					if (!IsValidPlayer(pl) || !IsFakeClient(pl)) {
 						continue;
 					}
@@ -542,7 +542,7 @@ stock RemoveMapObj() {
 									* not the true number of active entities.
 									*/
 								
-	for (new i=MaxClients;i<maxent;i++) {
+	for (new i=MaxClients;i<=maxent;i++) {
 		if (!IsValidEdict(i) || !IsValidEntity(i)) {
 			continue;
 		}
