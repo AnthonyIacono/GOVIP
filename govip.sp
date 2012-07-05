@@ -168,6 +168,8 @@ public Event_RoundEnd(Handle:event, const String:name[], bool:dontBroadcast) {
 		return;
 	}
 	
+	LastVIP = CurrentVIP;
+	
 	RoundComplete = true; /* The round is 'ogre'. No point in continuing to track stats. */
 }
 
