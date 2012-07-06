@@ -131,6 +131,7 @@ public Event_RoundStart(Handle:event, const String:name[], bool:dontBroadcast) {
 		return; /* Should trigger the main loop catches. */
 	}
 	
+	InsertServerCommand("cs_make_vip %i", g_iCurrentVIP);
 	SetupVIP(g_iCurrentVIP);
 	
 	if (lastVIP && lastVIP != g_iCurrentVIP && g_iRoundWonByTeam == CS_TEAM_CT) {
