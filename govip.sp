@@ -104,7 +104,7 @@ public OnClientDisconnect(client) {
 	
 	g_bRoundComplete = true;
 	
-	g_iLastVIP = g_iCurrentVIP;
+	g_iLastVIP = GetClientSerial(g_iCurrentVIP);
 	
 	PrintToChatAll("%s %s", GOVIP_PREFIX, "The VIP has left, round ends in a draw.");
 	g_iBotDirectionState = BOTState_NotDirected;
@@ -123,22 +123,24 @@ public OnConfigsExecuted()
 
 // 03. Events
 public Event_RoundStart(Handle:event, const String:name[], bool:dontBroadcast) {
+	new lastVIP = GetClientFromSerial(g_iLastVIP);
+	
 	g_bRoundComplete = false;
 	
-	g_iCurrentVIP = GetRandomPlayerOnTeam(CS_TEAM_CT, g_iLastVIP);
+	g_iCurrentVIP = GetRandomPlayerOnTeam(CS_TEAM_CT, lastVIP);
 	
 	SetupVIP(g_iCurrentVIP);
 	
-	if (g_iLastVIP && g_iLastVIP != g_iCurrentVIP && g_iRoundWonByTeam == CS_TEAM_CT) {
-		if (IsClientInGame(g_iLastVIP) && GetClientTeam(g_iLastVIP) == CS_TEAM_CT) {
-			SetupVIP(g_iLastVIP);
+	if (lastVIP && lastVIP != g_iCurrentVIP && g_iRoundWonByTeam == CS_TEAM_CT) {
+		if (IsClientInGame(lastVIP) && GetClientTeam(lastVIP) == CS_TEAM_CT) {
+			SetupVIP(lastVIP);
 			
 			decl String:weaponName[96];
 			GetConVarString(g_hCVarVIPWeaponSuccess, weaponName, sizeof(weaponName));
 			TrimString(weaponName);
 			
 			if (weaponName[0] != '\0') {
-				GivePlayerItem(g_iLastVIP, weaponName);
+				GivePlayerItem(lastVIP, weaponName);
 			}
 		}
 	}
@@ -197,7 +199,8 @@ public Event_RoundEnd(Handle:event, const String:name[], bool:dontBroadcast) {
 		return;
 	}
 	
-	g_iLastVIP = g_iCurrentVIP;
+	g_iLastVIP = (g_iCurrentVIP && IsClientInGame(g_iCurrentVIP)) ? GetClientSerial(g_iCurrentVIP) : 0;
+	
 	g_iRoundWonByTeam = GetEventInt(event, "winner");
 	
 	g_bRoundComplete = true; /* The round is 'ogre'. No point in continuing to track stats. */
@@ -222,7 +225,7 @@ public Action:Event_PlayerDeath(Handle:event, const String:name[], bool:dontBroa
 	
 	PrintToChatAll("%s %s", GOVIP_PREFIX, "The VIP has died, Terrorists win!");
 	
-	g_iLastVIP = g_iCurrentVIP;
+	g_iLastVIP = GetClientSerial(g_iCurrentVIP);
 	g_iRoundWonByTeam = CS_TEAM_T;
 	
 	g_iBotDirectionState = BOTState_NotDirected;
@@ -296,7 +299,7 @@ public Action:GOVIP_MainLoop(Handle:timer) {
 		if (g_iCurrentVIP == 0) {
 			g_bRoundComplete = true;
 			
-			g_iCurrentVIP = GetRandomPlayerOnTeam(CS_TEAM_CT, g_iLastVIP);
+			g_iCurrentVIP = GetRandomPlayerOnTeam(CS_TEAM_CT, GetClientFromSerial(g_iLastVIP));
 				
 			CS_TerminateRound(5.0, CSRoundEnd_GameStart); 
 		}
@@ -329,7 +332,7 @@ public Action:GOVIP_MainLoop(Handle:timer) {
 				if (IsVectorInsideMinMaxBounds(vipOrigin, rescueZone, rescueZone[(sizeof(rescueZone)/2)])) { // seem good? Yeah, we should throw it into a stock probably,  yeah
 					g_bRoundComplete = true;
 					
-					g_iLastVIP = g_iCurrentVIP;
+					g_iLastVIP = GetClientSerial(g_iCurrentVIP);
 					
 					CS_TerminateRound(5.0, CSRoundEnd_CTWin);
 					
@@ -594,7 +597,7 @@ public TouchRescueZone(trigger, client) {
 	
 	CS_TerminateRound(5.0, CSRoundEnd_CTWin);
 	
-	g_iLastVIP = g_iCurrentVIP;
+	g_iLastVIP = GetClientSerial(g_iCurrentVIP);
 	g_iBotDirectionState = BOTState_NotDirected;
 	g_iRoundWonByTeam = CS_TEAM_CT;
 	PrintToChatAll("%s %s", GOVIP_PREFIX, "The VIP has been rescued, Counter-Terrorists win.");
