@@ -470,8 +470,10 @@ ProcessConfigurationFiles() {
 		
 		PrintToServer("%s Loading legacy rescue zone beginning at [%s, %s, %s], ending at [%s, %s, %s].", GOVIP_PREFIX, coords[0], coords[1], coords[2], coords[3], coords[4], coords[5]);
 	}
-		
-	if (!GetCurrentMap(buffer, sizeof(buffer))) {
+	
+	decl String:mapname[96];
+	
+	if (!GetCurrentMap(mapname, sizeof(mapname))) {
 		return; /* Should never happen... We should maybe even throw an error. */
 	}
 	
@@ -484,21 +486,19 @@ ProcessConfigurationFiles() {
 		return;
 	}
 	
-	if (KvJumpToKey(kv, buffer)) {
+	if (KvJumpToKey(kv, mapname)) {
 		KvGotoFirstSubKey(kv);
 		decl String:endcoords[(sizeof(coords)/2)][sizeof(coords[])];
 		do {
 			KvGetString(kv, "start", buffer, sizeof(buffer));
 			
-			if (ExplodeString(buffer, " ", coords, sizeof(coords), sizeof(coords[])) != 3)
-			{
+			if (ExplodeString(buffer, " ", coords, sizeof(coords), sizeof(coords[])) != 3) {
 				PrintToServer("%s %s %s", GOVIP_PREFIX, "Illegal Input for field Start: ", buffer);
 				continue;
 			}
 			
 			KvGetString(kv, "end", buffer, sizeof(buffer));
-			if (ExplodeString(buffer, " ", endcoords, sizeof(endcoords), sizeof(endcoords[])) != 3)
-			{
+			if (ExplodeString(buffer, " ", endcoords, sizeof(endcoords), sizeof(endcoords[])) != 3) {
 				PrintToServer("%s %s %s", GOVIP_PREFIX, "Illegal Input for field End: ", buffer);
 				continue;
 			}
