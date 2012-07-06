@@ -65,7 +65,6 @@ public OnPluginStart() {
 	HookEvent("round_freeze_end", Event_RoundFreezeEnd, EventHookMode_PostNoCopy);
 	HookEvent("round_end", Event_RoundEnd, EventHookMode_Post);
 	HookEvent("player_death", Event_PlayerDeath);
-	//HookEvent("player_spawn", Event_PlayerSpawn);
 	
 	g_hAllRescueZones = CreateArray(GOVIP_INTVECSIZE);
 	
@@ -94,7 +93,6 @@ CCSBotMoveTo(bot, Float:origin[3]) {
 public OnClientPutInServer(client) {
 	SDKHook(client, SDKHook_WeaponCanUse, OnWeaponCanUse);
 	SDKHook(client, SDKHook_OnTakeDamage, OnTakeDamage);
-	return true;
 }
 
 public OnClientDisconnect(client) {
@@ -229,23 +227,6 @@ public Action:Event_PlayerDeath(Handle:event, const String:name[], bool:dontBroa
 	g_iRoundWonByTeam = CS_TEAM_T;
 	
 	g_iBotDirectionState = BOTState_NotDirected;
-	return Plugin_Continue;
-}
-
-public Action:Event_PlayerSpawn(Handle:event, const String:name[], bool:dontBroadcast) {
-	if (g_iCurrentState != VIPState_Playing) {
-		return Plugin_Continue;
-	}
-	
-	new userid = GetEventInt(event, "userid");
-	new client = GetClientOfUserId(userid);
-	
-	if (client != g_iCurrentVIP) {
-		return Plugin_Continue;
-	}
-	
-
-	
 	return Plugin_Continue;
 }
 
