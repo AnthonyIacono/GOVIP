@@ -419,9 +419,8 @@ bool:IsValidPlayer(client) {
 	return true;
 }
 
-ProcessConfigurationFiles()
-{
-	new String:buffer[512];
+ProcessConfigurationFiles() {
+	decl String:buffer[512];
 	
 	new trigger = -1;
 
@@ -478,11 +477,10 @@ ProcessConfigurationFiles()
 	
 	new Handle:kv = CreateKeyValues("RescueZones");
 	
-	decl String:path[1024];
-	BuildPath(Path_SM, path, sizeof(path), "configs/rescue_zones.cfg");
+	BuildPath(Path_SM, buffer, sizeof(buffer), "configs/rescue_zones.cfg");
 	
-	if (!FileToKeyValues(kv, path)) {
-		PrintToServer("%s %s", GOVIP_PREFIX, "Unable to parse file: %s", path);
+	if (!FileToKeyValues(kv, buffer)) {
+		PrintToServer("%s %s", GOVIP_PREFIX, "Unable to parse file: %s", buffer);
 		return;
 	}
 	
