@@ -127,6 +127,10 @@ public Event_RoundStart(Handle:event, const String:name[], bool:dontBroadcast) {
 	
 	g_iCurrentVIP = GetRandomPlayerOnTeam(CS_TEAM_CT, lastVIP);
 	
+	if (!g_iCurrentVIP) {
+		return; /* Should trigger the main loop catches. */
+	}
+	
 	SetupVIP(g_iCurrentVIP);
 	
 	if (lastVIP && lastVIP != g_iCurrentVIP && g_iRoundWonByTeam == CS_TEAM_CT) {
